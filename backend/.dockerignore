@@ -1,0 +1,7 @@
+node_modules
+dist
+coverage
+*.log
+tmp
+scripts/seed.ts
+src/**/*.test.ts

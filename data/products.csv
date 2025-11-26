@@ -1,0 +1,7 @@
+sku,name,category,cost_price,selling_price,stock_qty,description
+SCR-001,15.6 Slim 30 Pin,Screen,65,95,10,Standard laptop screen for Asus/Lenovo/HP modern models.
+SCR-002,15.6 Standard 40 Pin,Screen,50,80,5,Old generation thick screen.
+SCR-003,14.0 Slim 30 Pin FHD,Screen,70,110,8,Full HD screen for ultrabooks.
+BAT-001,HP HS04 Battery,Battery,25,45,20,Battery for HP 250 G5 series.
+SSD-001,Kingston 240GB SSD,Storage,30,50,15,SATA 3 SSD Drive.
+SRV-001,Windows Format,Service,0,20,999,OS Installation and driver setup.
