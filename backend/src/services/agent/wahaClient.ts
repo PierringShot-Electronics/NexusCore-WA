@@ -1,4 +1,4 @@
-import axios, { AxiosInstance } from 'axios';
+import axios, { AxiosInstance, isAxiosError } from 'axios';
 import type { BufferedMessagePayload } from '../buffer/smartBuffer';
 import { env } from '../../config/env';
 import { logger } from '../../utils/logger';
@@ -24,6 +24,15 @@ type SessionStatusResponse = {
     id: string;
     pushName?: string;
   };
+};
+
+type SessionQrSuccess = {
+  qr: string;
+};
+
+type SessionQrFailure = {
+  error: string;
+  status?: string;
 };
 
 export class WahaClient {
@@ -89,13 +98,60 @@ export class WahaClient {
     }
   }
 
-  public async getSessionQr(): Promise<{ qr: string } | null> {
+  public async startSession(): Promise<boolean> {
     try {
-      const { data } = await this.http.get<{ qr: string }>(`/api/${this.session}/auth/qr`);
+      await this.http.post(`/api/sessions/${this.session}/start`);
+      return true;
+    } catch (error) {
+      if (
+        isAxiosError(error) &&
+        error.response &&
+        (error.response.status === 409 || error.response.status === 423)
+      ) {
+        // Session already started or locked; treat as success for idempotency.
+        logger.debug({ status: error.response.status }, 'WAHA session already in desired state');
+        return true;
+      }
+      logger.error({ err: error }, 'Failed to start WAHA session');
+      return false;
+    }
+  }
+
+  public async getSessionQr(): Promise<SessionQrSuccess | SessionQrFailure | null> {
+    try {
+      const { data } = await this.http.get<SessionQrSuccess>(`/api/${this.session}/auth/qr`);
       return data;
     } catch (error) {
-      logger.warn({ err: error }, 'Failed to fetch WAHA session QR');
-      return null;
+      if (isAxiosError(error) && error.response) {
+        const payload = error.response.data as SessionQrFailure | undefined;
+        if (error.response.status === 422) {
+          logger.debug(
+            {
+              status: payload?.status,
+              message: payload?.error
+            },
+            'WAHA session not ready for QR fetch'
+          );
+          return {
+            error: payload?.error ?? 'session_not_ready',
+            status: payload?.status
+          };
+        }
+
+        logger.warn(
+          { status: error.response.status, data: error.response.data },
+          'Unexpected response while fetching WAHA session QR'
+        );
+        return {
+          error: payload?.error ?? 'qr_fetch_error',
+          status: payload?.status
+        };
+      }
+
+      logger.error({ err: error }, 'Failed to fetch WAHA session QR');
+      return {
+        error: 'qr_fetch_error'
+      };
     }
   }
 }

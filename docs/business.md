@@ -1,5 +1,3 @@
-Bu cədvəl bütün əməliyyatlarınızı idarə etmək üçün vahid bir məlumat mənbəyi rolunu oynaya bilər.
-
 ### **PiercingShot Electronics™ və Tərəfdaş Depoların Ümumi Məlumat Cədvəli**
 
 | Satıcı / Depo Adı | Ünvan | Əlaqə Məlumatları | İş Saatları | Məhsul Kateqoriyaları | Müştəri üçün Təlimat | Kuryer üçün Təlimat | Xüsusi Qeydlər |

@@ -20,8 +20,43 @@ export function createAdminRouter(): Router {
   });
 
   router.get('/qr', async (_req, res) => {
+    const session = await wahaClient.getSessionStatus();
+
+    if (!session) {
+      return res.status(503).json({ error: 'status_unavailable' });
+    }
+
+    const normalizeStatus = (value: string | undefined): string => {
+      if (!value) return 'UNKNOWN';
+      return value.toUpperCase();
+    };
+
+    let status = normalizeStatus(session.status);
+
+    if (status === 'WORKING' || status === 'CONNECTED') {
+      return res.json({ error: 'session_already_authenticated', status });
+    }
+
+    if (status === 'STOPPED') {
+      const started = await wahaClient.startSession();
+      if (!started) {
+        return res.status(503).json({ error: 'session_start_failed', status });
+      }
+      const refreshed = await wahaClient.getSessionStatus();
+      status = normalizeStatus(refreshed?.status);
+    }
+
     const qr = await wahaClient.getSessionQr();
-    res.json(qr ?? { error: 'qr_not_available' });
+
+    if (!qr) {
+      return res.status(202).json({ error: 'qr_not_available', status });
+    }
+
+    if ('error' in qr) {
+      return res.status(202).json({ ...qr, status: qr.status ?? status });
+    }
+
+    return res.json({ ...qr, status });
   });
 
   router.get('/logs/history', (_req, res) => {

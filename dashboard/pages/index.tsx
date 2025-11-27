@@ -26,6 +26,18 @@ type LogEntry = {
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
+const QR_ERROR_MESSAGES: Record<string, string> = {
+  session_already_authenticated: 'Sessiya aktivdir, QR tələb olunmur.',
+  session_not_ready: 'WAHA sessiyası QR üçün hazırlaşır, bir neçə saniyə sonra yenidən yoxlayın.',
+  session_start_failed: 'Sessiyanı işə salmaq mümkün olmadı. WAHA loglarına baxın.',
+  status_unavailable: 'WAHA statusu əldə olunmadı. WAHA konteynerini yoxlayın.',
+  qr_not_available: 'QR hələ generasiya olunmayıb. Bir qədər sonra yenidən yoxlayın.'
+};
+
+function formatQrError(code: string): string {
+  return QR_ERROR_MESSAGES[code] ?? `QR hazır deyil: ${code}`;
+}
+
 export default function Home() {
   const { data, error } = useSWR<StatusResponse>('/api/status', fetcher, {
     refreshInterval: 15000,
@@ -35,6 +47,10 @@ export default function Home() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [qr, setQr] = useState<string | null>(null);
   const [qrError, setQrError] = useState<string | null>(null);
+  const [isFetchingQr, setIsFetchingQr] = useState(false);
+
+  const wahaStatus = data?.waha?.status ?? 'UNKNOWN';
+  const sessionActive = wahaStatus === 'CONNECTED' || wahaStatus === 'WORKING';
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -57,8 +73,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    const status = data?.waha?.status ?? 'UNKNOWN';
-    if (status && status !== 'CONNECTED' && status !== 'WORKING') {
+    if (!sessionActive) {
       fetch(`${apiBase}/admin/qr`)
         .then((res) => res.json())
         .then((qrData) => {
@@ -78,7 +93,7 @@ export default function Home() {
       setQr(null);
       setQrError(null);
     }
-  }, [data?.waha?.status]);
+  }, [sessionActive]);
 
   const wahaStatusLabel = useMemo(() => {
     if (!data?.waha) return 'Disconnected';
@@ -147,13 +162,20 @@ export default function Home() {
               ) : (
                 <div className="mt-4 rounded-lg border border-dashed border-slate-700 p-4 text-sm text-slate-300">
                   {qrError
-                    ? `QR hazır deyil: ${qrError}`
+                    ? formatQrError(qrError)
                     : 'Sessiya hazırdır. QR yalnız yenidən qoşulma lazım olanda göstəriləcək.'}
                 </div>
               )}
               <button
                 type="button"
+                disabled={sessionActive || isFetchingQr}
                 onClick={() => {
+                  if (sessionActive) {
+                    setQr(null);
+                    setQrError('session_already_authenticated');
+                    return;
+                  }
+                  setIsFetchingQr(true);
                   fetch(`${apiBase}/admin/qr`)
                     .then((res) => res.json())
                     .then((qrData) => {
@@ -168,11 +190,14 @@ export default function Home() {
                     .catch((err) => {
                       setQr(null);
                       setQrError(err.message);
+                    })
+                    .finally(() => {
+                      setIsFetchingQr(false);
                     });
                 }}
-                className="mt-4 w-full rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm font-medium text-slate-100 transition hover:bg-slate-700"
+                className="mt-4 w-full rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm font-medium text-slate-100 transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                QR kodunu yenilə
+                {isFetchingQr ? 'QR alınır...' : 'QR kodunu yenilə'}
               </button>
             </div>
           </section>

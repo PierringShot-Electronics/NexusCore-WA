@@ -54,7 +54,14 @@ def main() -> int:
     waha_port = os.environ.get("WAHA_SERVER_PORT") or env_from_file.get("WAHA_SERVER_PORT") or "3001"
     waha_host = waha_host_url or f"http://localhost:{waha_port}"
 
-    waha_api_key = os.environ.get("WAHA_API_KEY") or env_from_file.get("WAHA_API_KEY") or "admin"
+    waha_api_key = os.environ.get("WAHA_API_KEY") or env_from_file.get("WAHA_API_KEY")
+    if not waha_api_key or waha_api_key in {"admin", "changeme"}:
+        print(
+            "WAHA_API_KEY is missing or still set to a default value. "
+            "Populate it in your environment or .env before running the smoke test.",
+            file=sys.stderr,
+        )
+        return 1
 
     tasks = [
         ("Backend /healthz", f"{backend_url.rstrip('/')}/healthz", None),
