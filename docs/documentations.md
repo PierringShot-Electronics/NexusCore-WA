@@ -84,6 +84,13 @@ Function CalculateOffer(internalCost, competitorPrice, minMargin):
 
 
 AI cavabında bu konteksti istifadə edir: "Bazarda bu ekran 120 AZN-ə satılır, lakin biz sizə 110 AZN təklif edirik və üzərinə pulsuz quraşdırma hədiyyə edirik."
+
+5.3 Reallaşdırılmış Funksionallıqlar (Noyabr 2025)
+- **Agent Orkestrasiyası:** `AgentService` Groq əsaslı intent klassifikasiyası və GPT-4o cavab generasiyası ilə tam operativdir; cavablar WAHA vasitəsilə avtomatik göndərilir.
+- **Alət Ekosistemi:** `lookupInternalStock` (pgvector + keyword fallback), `searchCompetitors` (Tap.az scraping), `calculateOffer` (dinamik qiymət) və şəkil üçün müvəqqəti Vision cavabı istifadədədir.
+- **Guardrails & Handover:** Zərərli sorğuları filtr edən guardrail və avtomatik human handover tövsiyəsi aktivdir.
+- **Konfiqurasiya:** `.env` vasitəsilə WAHA, OpenAI və Groq parametrləri verilir; ən azı bir LLM API açarı tələb olunur.
+
 6. AI Nüvəsi və Master Prompt Dizaynı
 Sistemin mərkəzində dayanan AI modeli, yalnız sual-cavab rejimində deyil, "Agentic" rejimdə işləməlidir. Bu, modelin alətlərdən (Tools) istifadə etmək və çox addımlı planlar qurmaq qabiliyyətini tələb edir.
 6.1 Model Seçimi və Konfiqurasiya
@@ -160,13 +167,14 @@ Key Rotation: Implement a class that rotates GROQ_API_KEYS on 429 errors.
 Tools: Implement WebSearchTool (using Serper or simple scraping logic for Tap.az specific paths).
 Orchestrator: The main loop. Receives message -> Gets Context -> Calls LLM with Tools -> Executes Tools -> Sends Response.
 Phase 4: Multimodal Pipelines
-Audio Pipeline (src/services/audio.ts):
-Debounce Logic: On message event, check msg.type === 'ptt'. Push to Redis list audio_queue:${userId}. Set/Reset Redis key expiry (5s).
-Processor: Listen for Redis key expiry events (keyspace notifications). Fetch all audio chunks, merge using ffmpeg, transcribe via Groq Whisper.
-Vision Pipeline:
-If msg.type === 'image', download to ./data/media.
-Call Groq Vision API.
-If text describes a laptop model, trigger WebSearchTool for screen specs.
+Audio Pipeline (src/services/agent/mediaProcessor.ts):
+Debounce Logic: Smart buffer yerində qalır; audio/PTT mesajı buferə düşdükdə media prosessor WAHA URL-dən faylı endirir.
+Transkripsiya: Default olaraq OpenAI `gpt-4o-mini-transcribe` çağırılır; uğursuz olarsa Groq `whisper-large-v3` ilə fallback.
+Kontekst: Transkript `[Səs mesajı] ...` prefiksi ilə agent kontekstinə əlavə edilir, beləliklə LLM istifadəçinin dediklərini mətn kimi görür.
+Vision & Video:
+Şəkillər üçün GPT-4o Vision çağırılır; video mesajlarında link və caption qeydi yaradılır (gələcəkdə frame analizi üçün hook).
+Documents:
+WAHA-dan gələn sənəd URL-ləri keşlənir və cavabda qeyd olunur; lazım olsa operator təsdiqi tələb olunur.
 Phase 5: Admin Panel & Security
 Admin API:
 Endpoints for GET /logs, POST /config/update, GET /chats.
@@ -183,7 +191,7 @@ Agent Logic: Use the "Master Prompt" defined in the Technical Report as the syst
 4. Operational Instructions
 Start: docker-compose up --build -d
 Logs: docker-compose logs -f app
-Auth: Scan QR code printed in logs or via Admin UI.
+Auth: Scan QR code printed in logs or via Admin UI (`bash scripts/waha_session.sh` skripti də QR çıxara bilir).
 Import Data: Place products.csv in ./data/csv and hit POST /api/admin/ingest.
 9. Təhlükəsizlik və Siqnal Testləri (Reliability)
 Sistemin "7/24 ayaqda qalması" üçün çoxqatlı qoruma mexanizmləri tətbiq edilir.

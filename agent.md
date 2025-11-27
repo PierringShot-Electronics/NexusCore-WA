@@ -6,7 +6,7 @@
 You are building an advanced business automation system for an electronics repair and sales shop. The system must use **WAHA (WhatsApp HTTP API)** for communication, **Node.js (TypeScript)** for logic, **PostgreSQL + pgvector** for memory, and **Redis** for buffering.
 
 **Key capabilities:**
-1.  **Multi-Modal:** Handle Text, Audio (Whisper), and Images (Vision).
+1.  **Multi-Modal:** Handle Text, Audio (Whisper), Images (Vision), Video (metadata) və sənəd paylaşımı.
 2.  **Autonomous:** Use Tools to search the web (Google/Tap.az), lookup internal DB, and calculate prices.
 3.  **Resilient:** Self-healing Docker containers, message buffering, and smoke tests.
 4.  **Business Logic:** Dynamic pricing based on competitor analysis (see `biznes.md`).
@@ -25,12 +25,13 @@ You are building an advanced business automation system for an electronics repai
 
 ### A. The "Smart Buffer" (Debounce Logic)
 *Crucial for WhatsApp User Experience.*
--   **Problem:** Users send multiple short messages ("Hi", "I have a problem", "with my PC").
+-   **Problem:** Users send multiple short messages ("Hi", "I have a problem", "with my PC") və tez-tez səs/video statusları paylaşır.
 -   **Solution:**
     -   On incoming message, push to Redis List: `chat_buffer:{userId}`.
-    -   Reset a 8-second countdown timer.
+    -   Reset an 8-second countdown timer.
     -   If timer expires (silence), aggregate all buffered messages into one context.
-    -   If user sends Audio, append to buffer. At expiry, merge audio (ffmpeg) -> Transcribe -> Add to context.
+    -   Audio/PTT fayllar WAHA-dan endirilir, `mediaProcessor` OpenAI `gpt-4o-mini-transcribe` (fallback Groq `whisper-large-v3`) ilə transkripsiya edir və `[Səs mesajı] ...` kimi kontekstə daxildir.
+    -   Image/video/document message-ları üçün link + caption qeydləri yaradılır ki, agent Vision alətlərinə və ya operatorlara ötürə bilsin.
 
 ### B. The AI Agent & Tool Use
 The Agent must decide to use tools based on the `biznes.md` rules.
@@ -38,7 +39,7 @@ The Agent must decide to use tools based on the `biznes.md` rules.
 -   **Tool: `search_competitors(product_name)`**:
     -   Use Google Search or scrape `tap.az` (Azerbaijani marketplace).
     -   Extract price range for the specific model.
--   **Tool: `analyze_image(url)`**: Use GPT-4o Vision to identify laptop model/screen damage from photos.
+-   **Tool: `analyze_image(url)`**: Use GPT-4o Vision to identify laptop model/screen damage from photos (video mesajı varsa ilk frame üçün əlavə analiz hazırlamaq planlıdır).
 -   **Tool: `calculate_offer(cost, competitor_price)`**:
     -   Logic: Offer = `CompetitorPrice - 5%` (Ensure `Offer > Cost + Margin`).
 
@@ -65,11 +66,13 @@ Create `docker-compose.yml` with:
 -   `redis`: Standard config.
 -   `app`: Your Node.js application.
 -   `dashboard`: The Frontend.
+-   Media fayllarının saxlanması üçün WAHA konteynerinin default `/app/data` volumunu qoruyun.
 
 ### Phase 2: Backend Core
 1.  Setup Express server with `webhook` endpoint.
 2.  Implement the **Redis Buffer/Debounce** middleware.
 3.  Create the **Context Manager** (fetch last 10 messages from DB).
+4.  `mediaProcessor` modulunu əlavə et ki, audio/video/document mesajları agent kontekstinə çevrilsin.
 
 ### Phase 3: AI Logic & Tools
 1.  Implement `AgentService` using OpenAI Function Calling.
@@ -82,6 +85,7 @@ Create `docker-compose.yml` with:
     -   Check if WAHA is connected.
     -   Check DB write/read.
     -   Check OpenAI API connectivity.
+3.  `waha_session.sh` skriptinə WAHA sessiyasının avtomatik yaradılması və QR çıxarışı üçün rely et.
 
 ## 5. EXECUTION INSTRUCTION
 **Start immediately.**
