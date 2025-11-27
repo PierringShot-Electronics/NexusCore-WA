@@ -1,5 +1,5 @@
 import { Pool } from 'pg';
-import { registerType } from 'pgvector/pg';
+import pgvector from 'pgvector/pg';
 import { env } from '../config/env';
 import { logger } from '../utils/logger';
 
@@ -9,14 +9,25 @@ export const postgresPool = new Pool({
   idleTimeoutMillis: 30_000
 });
 
-registerType(postgresPool);
-
 postgresPool.on('error', (error: Error) => {
   logger.error({ err: error }, 'Unexpected Postgres client error');
 });
 
+postgresPool.on('connect', (client) => {
+  pgvector
+    .registerType(client)
+    .catch((error: Error) => {
+      logger.error({ err: error }, 'Failed to register pgvector type');
+    });
+});
+
 export async function connectPostgres(): Promise<void> {
   const client = await postgresPool.connect();
+  try {
+    await pgvector.registerType(client);
+  } catch (error) {
+    logger.error({ err: error }, 'Failed to register pgvector type for initial client');
+  }
   client.release();
   logger.info('Postgres pool connected');
 }

@@ -1,12 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ENV_FILE="${REPO_ROOT}/.env"
+
+if [ -f "${ENV_FILE}" ]; then
+  # shellcheck disable=SC1090
+  set -a
+  source "${ENV_FILE}"
+  set +a
+fi
+
 BACKEND_URL="${BACKEND_URL:-http://localhost:3000}"
 WAHA_URL="${WAHA_URL:-http://localhost:3001}"
 POSTGRES_HOST="${POSTGRES_HOST:-localhost}"
 POSTGRES_PORT="${POSTGRES_PORT:-5432}"
 POSTGRES_USER="${POSTGRES_USER:-whatscore}"
 POSTGRES_DB="${POSTGRES_DB:-whatscore}"
+WAHA_API_KEY="${WAHA_API_KEY:-admin}"
 
 function log() {
   printf '[smoke] %s\n' "$1"
@@ -16,7 +27,7 @@ log "Checking backend health endpoint..."
 curl -fsS "${BACKEND_URL}/healthz" >/dev/null
 
 log "Checking WAHA bridge status..."
-curl -fsS "${WAHA_URL}/health" >/dev/null
+curl -fsS -H "X-Api-Key: ${WAHA_API_KEY}" "${WAHA_URL}/api/server/status" >/dev/null
 
 log "Checking PostgreSQL connectivity..."
 PGPASSWORD="${POSTGRES_PASSWORD:-whatscore}" \

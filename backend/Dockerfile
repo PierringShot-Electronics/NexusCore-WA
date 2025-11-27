@@ -1,13 +1,14 @@
 FROM node:20-alpine AS base
 WORKDIR /usr/src/app
 
-COPY package.json ./
+COPY backend/package*.json ./
 
 RUN npm install --legacy-peer-deps && npm cache clean --force
 
-COPY tsconfig.json ./tsconfig.json
-COPY src ./src
-COPY scripts ./scripts
+COPY backend/tsconfig.json ./tsconfig.json
+COPY backend/src ./src
+COPY backend/scripts ./scripts
+COPY docs ./docs
 
 RUN npm run build
 
@@ -19,6 +20,7 @@ ENV NODE_ENV=production
 COPY --from=base /usr/src/app/package.json ./
 COPY --from=base /usr/src/app/node_modules ./node_modules
 COPY --from=base /usr/src/app/dist ./dist
+COPY --from=base /usr/src/app/docs ./docs
 
 EXPOSE 3000
-CMD ["node", "dist/index.js"]
+CMD ["node", "dist/src/index.js"]

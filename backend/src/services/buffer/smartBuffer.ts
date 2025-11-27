@@ -1,7 +1,13 @@
 import type Redis from 'ioredis';
 import { logger } from '../../utils/logger';
 
-export type BufferedMessageType = 'text' | 'audio' | 'image' | 'unknown';
+export type BufferedMessageType =
+  | 'text'
+  | 'audio'
+  | 'image'
+  | 'video'
+  | 'document'
+  | 'unknown';
 
 export interface BufferedMessagePayload {
   id: string;
@@ -9,6 +15,10 @@ export interface BufferedMessagePayload {
   text?: string;
   audioUrl?: string;
   imageUrl?: string;
+  videoUrl?: string;
+  documentUrl?: string;
+  mimeType?: string;
+  caption?: string;
   raw: unknown;
   receivedAt: string;
 }
