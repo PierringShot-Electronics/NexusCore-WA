@@ -79,6 +79,9 @@ cd backend
 npm install
 npm run dev
 
+# MCP server (WAHA ↔ OpenAI inteqrasiyası)
+npm run mcp:dev  # http://localhost:3030/mcp üzərindən MCP müştərilərinə açılır
+
 # Dashboard inkişaf rejimi
 cd dashboard
 npm install
@@ -98,6 +101,7 @@ npm run dev
 - `.env` paylaşıla bilməz; yalnız `.env.example` commit olunur.
 - WAHA/OpenAI/Groq açarlarını CI və ya gizli menecerlərdə saxlayın. `WAHA_API_KEY` və WAHA dashboard/swagger hesablarını default dəyərlərdə saxlamayın; dəyişiklikdən sonra `sudo bash scripts/start_clean.sh && bash scripts/waha_session.sh`.
 - Şübhəli mesajlarda `STOP` komandasını və dashboard “Takeover” funksiyasını istifadə edin.
+- MCP server (`backend/src/mcp/server.ts`) yalnız daxili şəbəkədə açıq saxlayın və `X-Api-Key` header-i tələb edən reverse proxy arxasında yerləşdirin.
 
 ## Git & Yayım Qaydası
 - Commit mesajları: _əmr forması_ (`Add Redis smart buffer service`).

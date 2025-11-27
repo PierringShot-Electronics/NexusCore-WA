@@ -33,6 +33,7 @@ const EnvironmentSchema = z
       })
       .transform((value) => value.trim()),
     WAHA_SESSION: z.string().default('default'),
+    MCP_PORT: z.string().default('3030'),
     OPENAI_API_KEY: z.string().optional(),
     OPENAI_MODEL: z.string().default('gpt-4o-mini'),
     OPENAI_EMBEDDING_MODEL: z.string().default('text-embedding-3-small'),

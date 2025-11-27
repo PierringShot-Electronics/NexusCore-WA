@@ -37,6 +37,7 @@ const EnvironmentSchema = zod_1.z
     })
         .transform((value) => value.trim()),
     WAHA_SESSION: zod_1.z.string().default('default'),
+    MCP_PORT: zod_1.z.string().default('3030'),
     OPENAI_API_KEY: zod_1.z.string().optional(),
     OPENAI_MODEL: zod_1.z.string().default('gpt-4o-mini'),
     OPENAI_EMBEDDING_MODEL: zod_1.z.string().default('text-embedding-3-small'),
