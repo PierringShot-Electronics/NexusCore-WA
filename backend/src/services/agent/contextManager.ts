@@ -6,7 +6,7 @@ export interface PersistedMessage {
   role: 'user' | 'assistant' | 'system';
   messageType: string;
   content: Record<string, unknown>;
-  createdAt: Date;
+  createdAt: Date | string | number;
 }
 
 export class ContextManager {
