@@ -194,6 +194,8 @@ Logs: docker-compose logs -f app
 Auth: Scan QR code printed in logs or via Admin UI (`bash scripts/waha_session.sh` skripti də QR çıxara bilir).
 Import Data: Place products.csv in ./data/csv and hit POST /api/admin/ingest.
 9. Təhlükəsizlik və Siqnal Testləri (Reliability)
+
+**WAHA API Funksiya Kataloqu:** WAHA endpointlərinin OpenAI funksiyaları kimi istifadəsi üçün tam JSON sxemlərini `docs/waha_function_catalog.md` faylında tapa bilərsiniz.
 Sistemin "7/24 ayaqda qalması" üçün çoxqatlı qoruma mexanizmləri tətbiq edilir.
 9.1 Siqnal Testləri (Smoke Tests)
 Sadə, lakin effektiv testlər sistemin hər 5 dəqiqədən bir sağlamlığını yoxlayır. test/smoke.sh skripti:
