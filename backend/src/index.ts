@@ -6,6 +6,7 @@ import { connectRedis, disconnectRedis, redis } from './db/redis';
 import { SmartBuffer } from './services/buffer/smartBuffer';
 import { agentService } from './services/agent/agentService';
 import { logger } from './utils/logger';
+import { wahaClient } from './services/agent/wahaClient';
 
 async function bootstrap(): Promise<void> {
   await connectPostgres();
@@ -31,6 +32,12 @@ async function bootstrap(): Promise<void> {
       'WhatsCore backend listening'
     );
   });
+
+  setTimeout(() => {
+    wahaClient.ensureWebhookSubscription().catch((error) => {
+      logger.error({ err: error }, 'Failed to configure WAHA webhook subscription');
+    });
+  }, 5000);
 
   const shutdown = async (signal: string) => {
     logger.info({ signal }, 'Received shutdown signal');

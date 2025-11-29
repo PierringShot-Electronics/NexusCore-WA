@@ -1,0 +1,5 @@
+data/waha/sessions
+logs
+postgres
+env
+*.log

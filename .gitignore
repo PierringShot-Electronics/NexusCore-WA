@@ -9,3 +9,6 @@ dashboard/.next/
 *.log
 *.tmp
 /docker-compose.override.yml
+logs/
+data/waha/
+env/

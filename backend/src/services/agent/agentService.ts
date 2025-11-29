@@ -26,6 +26,14 @@ export class AgentService {
       customerName
     );
 
+    if (chatExternalId.endsWith('@broadcast')) {
+      logger.info(
+        { chatExternalId },
+        'Skipping broadcast/status event; no reply will be sent'
+      );
+      return;
+    }
+
     const command = findLastCommand(bufferedMessages);
     if (command) {
       await contextManager.appendMessage({
