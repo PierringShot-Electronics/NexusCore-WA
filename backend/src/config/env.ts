@@ -14,7 +14,24 @@ const EnvironmentSchema = z
     DATABASE_URL: z.string().url(),
     REDIS_URL: z.string().url(),
     WAHA_BASE_URL: z.string().url().default('http://waha:3000'),
-    WAHA_API_KEY: z.string().default('admin'),
+    WAHA_API_KEY: z
+      .string()
+      .superRefine((value, ctx) => {
+        const trimmed = value.trim();
+        if (trimmed.length < 16) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'WAHA_API_KEY must be at least 16 characters'
+          });
+        }
+        if (trimmed === 'admin') {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'WAHA_API_KEY cannot be "admin"; please set a secure key'
+          });
+        }
+      })
+      .transform((value) => value.trim()),
     WAHA_SESSION: z.string().default('default'),
     OPENAI_API_KEY: z.string().optional(),
     OPENAI_MODEL: z.string().default('gpt-4o-mini'),
@@ -31,7 +48,7 @@ const EnvironmentSchema = z
       }),
     BUSINESS_RULES_PATH: z
       .string()
-      .default(path.join(process.cwd(), 'docs', 'biznes.md')),
+      .default(path.join(process.cwd(), 'data', 'biznes.md')),
     TOOL_TAPAZ_BASE_URL: z.string().default('https://tap.az/s'),
     DEFAULT_LOCALE: z.string().default('az-AZ')
   });

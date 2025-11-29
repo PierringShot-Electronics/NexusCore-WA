@@ -10,6 +10,7 @@ export async function loadBusinessPrompt(): Promise<string> {
   const candidatePaths = [
     env.BUSINESS_RULES_PATH,
     path.join(process.cwd(), env.BUSINESS_RULES_PATH),
+    path.join(process.cwd(), '../data/biznes.md'),
     path.join(process.cwd(), '../docs/biznes.md')
   ];
 

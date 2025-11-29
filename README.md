@@ -31,18 +31,18 @@ docker-compose.yml
 | `dashboard/` | Next.js idarə paneli, canlı status modulu |
 | `postgres/init/` | `pgvector` aktivləşdirmə və başlanğıc sxem |
 | `data/products.csv` | Məhsul kataloqu, `npm run seed` ilə vektorlara yüklənir |
-| `docs/biznes.md` | Agentin əsas davranış qaydaları və ton tələbləri |
+| `data/biznes.md` | Agentin əsas davranış qaydaları və ton tələbləri |
 
 ## İstifadə Qaydası (Addım-addım)
 1. **Ətraf Mühit Hazırlığı**  
    - Docker Engine ≥ 24  
    - Docker Compose v2  
-   - `OPENAI_API_KEY`, `GROQ_API_KEY`, `WAHA_API_KEY` dəyərlərini əldə edin.
+   - `OPENAI_API_KEY`, `GROQ_API_KEY`, `WAHA_API_KEY`, `WAHA_DASHBOARD_USERNAME`/`WAHA_DASHBOARD_PASSWORD`, `WHATSAPP_SWAGGER_USERNAME`/`WHATSAPP_SWAGGER_PASSWORD` dəyərlərini hazırlayın. Güclü şifrələr üçün `openssl rand -hex 32` və ya `openssl rand -base64 24` istifadə edin.
 
 2. **Konfiqurasiya**  
    ```bash
    cp .env.example .env
-   # .env daxilində bütün API açarlarını və səsion parametrlərini yeniləyin
+   # .env daxilində bütün API açarlarını və sessiya parametrlərini yeniləyin
    ```
 
 3. **Servisləri Başladın**  
@@ -65,6 +65,7 @@ docker-compose.yml
    python test_endpoints.py
    ```
    WAHA bağlantısı, backend sağlamlığı və Postgres əlaqəsini yoxlayır.
+   Collation mismatch xəbərdarlıqları görsəniz `bash scripts/postgres_refresh_collation.sh` icra edin.
 
 ## Multimodal Prosessinq
 - **Səs mesajları:** WAHA-dan gələn audio/PTT faylları avtomatik endirilir, OpenAI `gpt-4o-mini-transcribe` və ya ehtiyac olduqda Groq `whisper-large-v3` ilə transkripsiya olunur, nəticə kontekstə `[Səs mesajı] ...` kimi əlavə edilir.
@@ -95,7 +96,7 @@ npm run dev
 
 ## Təhlükəsizlik & Konfiqurasiya
 - `.env` paylaşıla bilməz; yalnız `.env.example` commit olunur.
-- WAHA/OpenAI/Groq açarlarını CI və ya gizli menecerlərdə saxlayın. `WAHA_API_KEY`-i default `admin` buraxmayın, dəyişdikdən sonra `sudo bash scripts/start_clean.sh && bash scripts/waha_session.sh`.
+- WAHA/OpenAI/Groq açarlarını CI və ya gizli menecerlərdə saxlayın. `WAHA_API_KEY` və WAHA dashboard/swagger hesablarını default dəyərlərdə saxlamayın; dəyişiklikdən sonra `sudo bash scripts/start_clean.sh && bash scripts/waha_session.sh`.
 - Şübhəli mesajlarda `STOP` komandasını və dashboard “Takeover” funksiyasını istifadə edin.
 
 ## Git & Yayım Qaydası

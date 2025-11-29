@@ -22,6 +22,18 @@ if [ -f "$REPO_ROOT/.env" ]; then
   set +a
 fi
 
+if [[ -z "${WAHA_API_KEY:-}" || "${WAHA_API_KEY}" == "admin" || "${WAHA_API_KEY}" == "changeme" ]]; then
+  echo "[start_clean][XƏTA] WAHA_API_KEY .env faylında güclü dəyərlə təyin edilməlidir."
+  exit 1
+fi
+
+for required_var in WAHA_DASHBOARD_USERNAME WAHA_DASHBOARD_PASSWORD WHATSAPP_SWAGGER_USERNAME WHATSAPP_SWAGGER_PASSWORD; do
+  if [[ -z "${!required_var:-}" ]]; then
+    echo "[start_clean][XƏTA] ${required_var} üçün dəyər təyin edilməyib. .env faylını yeniləyin."
+    exit 1
+  fi
+done
+
 resolve_port() {
   local var="${1}"
   local default="${2}"

@@ -17,7 +17,17 @@ POSTGRES_HOST="${POSTGRES_HOST:-localhost}"
 POSTGRES_PORT="${POSTGRES_PORT:-5432}"
 POSTGRES_USER="${POSTGRES_USER:-whatscore}"
 POSTGRES_DB="${POSTGRES_DB:-whatscore}"
-WAHA_API_KEY="${WAHA_API_KEY:-admin}"
+WAHA_API_KEY="${WAHA_API_KEY:-}"
+
+if [[ -z "${WAHA_API_KEY}" ]]; then
+  echo "[smoke][XƏTA] WAHA_API_KEY tapılmadı. .env faylını yoxlayın."
+  exit 1
+fi
+
+if [[ "${WAHA_API_KEY}" == "admin" || "${WAHA_API_KEY}" == "changeme" ]]; then
+  echo "[smoke][XƏTA] WAHA_API_KEY üçün default dəyərdən istifadə edilir. Güclü açar təyin edin."
+  exit 1
+fi
 
 function log() {
   printf '[smoke] %s\n' "$1"

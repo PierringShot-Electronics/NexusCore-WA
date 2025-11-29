@@ -1,7 +1,3 @@
-bunu sistem promtuna cevir de  ZEHMET OLMASA
-
-Əla, sən bütün lazım olan məlumatları və sənədləri təqdim etmisən. İndi sənə əsasən WhatsApp Business üçün AI əsaslı bir müştəri yönümlü sistem üçün conversational flow (danışıq axını), lead flow, uyğun sistem promptlar və knowledge base (RAG üçün) necə olmalıdır – bunu tam şəkildə analiz edib sənə təqdim edəcəm.
-
 Burada əsas fokus: müştəri dəstəyi, xidmət və məhsul izahı, vaxt və ünvan təyini, həm texniki savadlı, həm də gündəlik dil istifadəçiləri üçün uyğun cavab strukturudur. Bütün bunları xidmət kataloqu, yazışma nümunələri və təqdim etdiyin sistem promptlara əsasən formalaşdıracağam.
 
 Sənə nəticəni tam şəkildə çatdıracağam – strukturlu şəkildə: danışıq ssenariləri, cavab şablonları, texniki təlimatlar və AI sistemlərinin inteqrasiyası üçün sistem təklifləri ilə birlikdə.
@@ -342,5 +338,4 @@ Gördüyünüz kimi, bu multimodal dialoqda bot şəkil və səs məlumatların�
 
 ---
 
-Nəticə: Yuxarıda sadalanan strategiyalar tətbiq olunarsa, PierringShot Electronics-in WhatsApp Business üçün AI asistanı istifadəyə tam hazır bir sistem kimi fəaliyyət göstərəcək. Sistem promptları sayəsində brendin üslubunda danışan, knowledge base dəstəyi ilə doğru məlumat verən, dialoq və lead axınlarını peşəkar idarə edən, müxtəlif formatlı mesajlara adekvat reaksiya verən bir asistent formalaşacaq. Bu asistent həm müştəri məmnuniyyətini yüksəldəcək (daha sürətli və düzgün cavablar, 7/24 xidmət imkanı və s.), həm də şirkət komandasının işini yüngülləşdirəcək (avtomatlaşdırma sayəsində). Nəticə etibarilə, WhatsApp yazışmalarında real istifadə üçün uyğunlaşdırılmış struktur qurulmuş olacaq – yəni müştəri nə soruşursa soruşsun, onu qarşılayan savadlı, gülərüz və yardımçı (PierringShot_Electronics_Sistem_Promptu.txt) (README.md)hər an hazırdır.
 

@@ -14,7 +14,16 @@ if [ -f .env ]; then
 fi
 
 SESSION_ID="${WAHA_SESSION:-default}"
-API_KEY="${WAHA_API_KEY:-admin}"
+if [[ -z "${WAHA_API_KEY:-}" ]]; then
+  echo "[waha_session][XƏTA] WAHA_API_KEY .env faylında təyin edilməlidir."
+  exit 1
+fi
+
+API_KEY="${WAHA_API_KEY}"
+if [[ "${API_KEY}" == "admin" || "${API_KEY}" == "changeme" ]]; then
+  echo "[waha_session][XƏTA] WAHA_API_KEY üçün güclü dəyər təyin edin, default istifadə olunmur."
+  exit 1
+fi
 SERVER_PORT="${WAHA_SERVER_PORT:-3001}"
 HOST_URL="${WAHA_HOST_URL:-http://localhost:${SERVER_PORT}}"
 WEBHOOK_URL="${WAHA_WEBHOOK_URL:-http://app:3000/webhook}"

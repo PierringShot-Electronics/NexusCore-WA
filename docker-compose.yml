@@ -41,7 +41,11 @@ services:
       WAHA_SERVER_PORT: ${WAHA_SERVER_PORT:-3001}
       WAHA_SESSION: ${WAHA_SESSION:-default}
       WAHA_PROVIDER: ${WAHA_PROVIDER:-meta}
-      WAHA_API_KEY: ${WAHA_API_KEY:-changeme}
+      WAHA_API_KEY: ${WAHA_API_KEY:?WAHA_API_KEY is required}
+      WAHA_DASHBOARD_USERNAME: ${WAHA_DASHBOARD_USERNAME:?WAHA_DASHBOARD_USERNAME is required}
+      WAHA_DASHBOARD_PASSWORD: ${WAHA_DASHBOARD_PASSWORD:?WAHA_DASHBOARD_PASSWORD is required}
+      WHATSAPP_SWAGGER_USERNAME: ${WHATSAPP_SWAGGER_USERNAME:?WHATSAPP_SWAGGER_USERNAME is required}
+      WHATSAPP_SWAGGER_PASSWORD: ${WHATSAPP_SWAGGER_PASSWORD:?WHATSAPP_SWAGGER_PASSWORD is required}
     ports:
       - "${WAHA_SERVER_PORT:-3001}:3000"
     volumes:
@@ -72,7 +76,7 @@ services:
     volumes:
       - ./backend:/usr/src/app
       - ./docs:/usr/src/app/docs
-      - ./biznes.md:/usr/src/app/biznes.md
+      - ./data:/usr/src/app/data
       - /usr/src/app/node_modules
     depends_on:
       postgres:
