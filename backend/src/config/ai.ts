@@ -25,3 +25,9 @@ if (!hasOpenAI) {
 if (!hasGroq) {
   logger.warn('GROQ_API_KEY is not set. Intent routing will use OpenAI only.');
 }
+
+if (!hasOpenAI && !hasGroq) {
+  logger.warn(
+    'Neither OpenAI nor Groq credentials are configured. AI features will stay disabled and handover replies will be used.'
+  );
+}

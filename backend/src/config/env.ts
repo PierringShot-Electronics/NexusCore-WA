@@ -34,14 +34,6 @@ const EnvironmentSchema = z
       .default(path.join(process.cwd(), 'docs', 'biznes.md')),
     TOOL_TAPAZ_BASE_URL: z.string().default('https://tap.az/s'),
     DEFAULT_LOCALE: z.string().default('az-AZ')
-  })
-  .superRefine((data, ctx) => {
-    if (!data.OPENAI_API_KEY && !data.GROQ_API_KEY) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'At least one of OPENAI_API_KEY or GROQ_API_KEY must be provided'
-      });
-    }
   });
 
 export type AppEnvironment = z.infer<typeof EnvironmentSchema>;
