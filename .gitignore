@@ -12,3 +12,4 @@ dashboard/.next/
 logs/
 data/waha/
 env/
+exporter.sh

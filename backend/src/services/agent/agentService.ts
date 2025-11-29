@@ -6,8 +6,12 @@ import { classifyIntent } from './aiRouter';
 import { executeTools } from './toolExecutor';
 import { buildAssistantReply } from './responseBuilder';
 import { wahaClient } from './wahaClient';
+import type { AgentReplyMessage } from './wahaClient';
+import { determinePersona } from './personaStrategy';
+import type { PersonaDecision } from './personaStrategy';
 import { evaluateGuardrails } from './guardrails';
 import { processMediaMessages } from './mediaProcessor';
+import { extractTextFromBufferedMessage } from './textUtils';
 
 interface HandleBufferedMessagesOptions {
   chatExternalId: string;
@@ -96,7 +100,71 @@ export class AgentService {
       }
     }
 
+    const latestMessage = extractTextFromBufferedMessage(
+      bufferedMessages[bufferedMessages.length - 1]
+    );
+
+    const fallbackSummary = wahaClient.buildBufferedSummary(bufferedMessages);
+    const userMessage = (
+      consolidated.text ||
+      latestMessage ||
+      fallbackSummary ||
+      'İstifadəçi yeni mesaj göndərdi.'
+    ).trim();
+
+    const normalizedForGreeting = (latestMessage || fallbackSummary || '')
+      .trim()
+      .toLowerCase();
+    if (normalizedForGreeting) {
+      const greetingPatterns = [/^s[aə]lam!?$/, /^h(e|ə)y!?$/, /^nec[əe]s[əe]n\??$/];
+      const isGreeting = greetingPatterns.some((regex) => regex.test(normalizedForGreeting));
+
+      if (isGreeting) {
+        const greetingReply = [
+          {
+            type: 'text' as const,
+            body: 'Salam! 👋 PierringShot Electronics-ə xoş gəlmisiniz.'
+          },
+          {
+            type: 'text' as const,
+            body:
+              'Məhsul və ya texniki dəstək haqqında sualınız varsa, buyurun yazın – sevinərək kömək edərəm.'
+          }
+        ];
+        await wahaClient.sendMessages({ chatId: chatExternalId, messages: greetingReply });
+        await contextManager.appendMessage({
+          chatId,
+          role: 'assistant',
+          messageType: 'reply',
+          content: {
+            intent: {
+              needsStock: false,
+              needsCompetitors: false,
+              needsPricing: false,
+              needsVision: false,
+              handover: false
+            },
+            tools: {},
+            messages: greetingReply
+          }
+        });
+        return;
+      }
+    }
+
     const recentMessages = await contextManager.getRecentMessages(chatId);
+    const previousAssistantBodies = recentMessages
+      .filter((message) => message.role === 'assistant')
+      .flatMap((message) => extractAssistantBodies(message.content));
+    const previousAssistantSignatures = new Set(
+      previousAssistantBodies.map((body) => normalizeMessageSignature(body))
+    );
+    const previousDetailRequests = previousAssistantBodies.filter((body) =>
+      body.includes('Daha dəqiq cavab verməyim üçün')
+    ).length;
+    const previousEscalationCount = previousAssistantBodies.filter((body) =>
+      body.includes('insan əməkdaşımız')
+    ).length;
 
     logger.info(
       {
@@ -107,8 +175,6 @@ export class AgentService {
       'Prepared context for agent decision'
     );
 
-    const fallbackSummary = wahaClient.buildBufferedSummary(bufferedMessages);
-    const userMessage = (consolidated.text || fallbackSummary || 'İstifadəçi yeni mesaj göndərdi.').trim();
     const intent = await classifyIntent(userMessage);
 
     if (intent.handover) {
@@ -147,10 +213,25 @@ export class AgentService {
       buffered: bufferedMessages
     });
 
+    const hasAudio = bufferedMessages.some((msg) => msg.type === 'audio');
+    const hasVisionCandidate =
+      bufferedMessages.some((msg) => msg.type === 'image' || msg.type === 'video') ||
+      Boolean(toolResults.vision);
+
+    const personaDecision: PersonaDecision = determinePersona({
+      intent,
+      userMessage,
+      tools: toolResults,
+      hasAudio,
+      hasVision: hasVisionCandidate,
+      hasComplaintHistory: previousAssistantBodies.some((body) => /şikayət|naraz/i.test(body))
+    });
+
     const assistantMessages = await buildAssistantReply({
       recentMessages,
       userMessage,
-      tools: toolResults
+      tools: toolResults,
+      persona: personaDecision
     });
 
     const filteredMessages = assistantMessages.filter((message) => {
@@ -162,7 +243,7 @@ export class AgentService {
       return true;
     });
 
-    const outgoing = filteredMessages.length
+    let outgoing = filteredMessages.length
       ? filteredMessages
       : [
           {
@@ -170,6 +251,63 @@ export class AgentService {
             body: 'Sorğunuzu insan əməkdaşımıza yönləndirirəm. Zəhmət olmasa gözləyin.'
           }
         ];
+
+    const fallbackTemplates = [
+      'Sorğunuzu insan əməkdaşımıza yönləndirirəm. Zəhmət olmasa gözləyin.',
+      'Daha dəqiq cavab verməyim üçün zəhmət olmasa istədiyiniz məhsul/model və ya problemin detalları barədə 1-2 cümləlik məlumat yazın.',
+      'Sizi eşidirəm! Məhsul, qiymət və ya texniki dəstək ilə bağlı sualınızı biraz açsanız, dəqiq cavab verə bilərəm.'
+    ];
+
+    const fallbackSignatures = new Set(
+      fallbackTemplates.map((template) => normalizeMessageSignature(template))
+    );
+
+    const looksGeneric =
+      outgoing.length &&
+      outgoing.every(
+        (message) =>
+          message.type === 'text' &&
+          fallbackSignatures.has(normalizeMessageSignature(message.body))
+      );
+
+    if (looksGeneric) {
+      const preview = buildPreview(userMessage);
+      if (previousDetailRequests > 1) {
+        intent.handover = true;
+        outgoing = buildEscalationMessages(preview, previousEscalationCount);
+      } else {
+        outgoing =
+          preview.length > 3
+            ? [
+                {
+                  type: 'text' as const,
+                  body: `Yazdığınız "${preview}" sorğusunu aldım.`
+                },
+                {
+                  type: 'text' as const,
+                  body:
+                    'Daha dəqiq cavab verməyim üçün zəhmət olmasa istədiyiniz məhsul/model və ya problemin detalları barədə 1-2 cümləlik məlumat yazın.'
+                }
+              ]
+            : [
+                {
+                  type: 'text' as const,
+                  body:
+                    'Sizi eşidirəm! Məhsul, qiymət və ya texniki dəstək ilə bağlı sualınızı biraz açsanız, dəqiq cavab verə bilərəm.'
+                }
+              ];
+      }
+    }
+
+    const preview = buildPreview(userMessage);
+    outgoing = removePreviouslySentMessages(outgoing, previousAssistantSignatures);
+
+    if (!outgoing.length) {
+      intent.handover = true;
+      outgoing = buildEscalationMessages(preview, previousEscalationCount + 1);
+    }
+
+    outgoing = dedupeMessages(outgoing);
 
     try {
       await wahaClient.sendMessages({
@@ -187,7 +325,9 @@ export class AgentService {
       content: {
         intent,
         tools: toolResults,
-        messages: outgoing
+        messages: outgoing,
+        persona: personaDecision.profile.key,
+        personaRationale: personaDecision.rationale
       }
     });
   }
@@ -212,8 +352,9 @@ async function consolidateBufferedMessages(
   const documentUrls: string[] = [];
 
   for (const message of messages) {
-    if (message.type === 'text' && message.text) {
-      textSegments.push(message.text.trim());
+    const extractedText = extractTextFromBufferedMessage(message);
+    if (extractedText) {
+      textSegments.push(extractedText);
     }
 
     if (message.type === 'audio' && message.audioUrl) {
@@ -266,8 +407,9 @@ function findLastCommand(messages: BufferedMessagePayload[]): CommandType {
     if (!message) {
       continue;
     }
-    if (message.type === 'text' && message.text) {
-      const command = detectCommand(message.text);
+    const candidateText = extractTextFromBufferedMessage(message);
+    if (candidateText) {
+      const command = detectCommand(candidateText);
       if (command) {
         return command;
       }
@@ -275,4 +417,134 @@ function findLastCommand(messages: BufferedMessagePayload[]): CommandType {
   }
 
   return null;
+}
+
+function extractAssistantBodies(content: Record<string, unknown> | null | undefined): string[] {
+  if (!content) {
+    return [];
+  }
+
+  const record = content as Record<string, unknown>;
+  const results: string[] = [];
+  const maybeMessages = record['messages'];
+  if (Array.isArray(maybeMessages)) {
+    for (const entry of maybeMessages) {
+      if (entry && typeof entry === 'object' && typeof (entry as { body?: unknown }).body === 'string') {
+        results.push(((entry as { body?: unknown }).body as string).trim());
+      }
+    }
+  }
+
+  const maybeResponse = record['response'];
+  if (Array.isArray(maybeResponse)) {
+    for (const entry of maybeResponse) {
+      if (entry && typeof entry === 'object' && typeof (entry as { body?: unknown }).body === 'string') {
+        results.push(((entry as { body?: unknown }).body as string).trim());
+      }
+    }
+  }
+
+  const directBody = record['body'];
+  if (typeof directBody === 'string') {
+    results.push(directBody.trim());
+  }
+
+  return results;
+}
+
+function normalizeMessageSignature(value: string): string {
+  return value.replace(/[\s\u00a0]+/g, ' ').trim().toLowerCase();
+}
+
+function buildPreview(message: string): string {
+  const trimmed = message.trim();
+  return trimmed.length > 120 ? `${trimmed.slice(0, 117)}…` : trimmed;
+}
+
+function removePreviouslySentMessages(
+  messages: AgentReplyMessage[],
+  previous: Set<string>
+): AgentReplyMessage[] {
+  return messages.filter((message) => {
+    if (message.type !== 'text') {
+      return true;
+    }
+    return !previous.has(normalizeMessageSignature(message.body));
+  });
+}
+
+function buildEscalationMessages(preview: string, attempt: number): AgentReplyMessage[] {
+  const templates: Array<{
+    headline: string;
+    followUp: string;
+  }> = [
+    {
+      headline:
+        preview.length > 3
+          ? `"${preview}" sorğunuzu qeydə aldım və komandamızla dəqiqləşdiririk.`
+          : 'Sorğunuzu qeydə aldım və komandamızla dəqiqləşdiririk.',
+      followUp: 'İnsan əməkdaşımız tezliklə cavab verəcək, zəhmət olmasa bildirişləri izləyin.'
+    },
+    {
+      headline:
+        preview.length > 3
+          ? `"${preview}" mövzusu üzrə cavabı operatorumuz hazırlayır.`
+          : 'Sorğunuz üzrə cavabı operatorumuz hazırlayır.',
+      followUp: 'Komandamız hazır olan kimi sizə yenilənmə göndərəcək.'
+    },
+    {
+      headline:
+        preview.length > 3
+          ? `"${preview}" sorğusu insan əməkdaşımıza yönləndirildi.`
+          : 'Sorğunuz insan əməkdaşımıza yönləndirildi.',
+      followUp: 'Ən qısa zamanda əlaqə saxlayacağıq və status barədə məlumat verəcəyik.'
+    }
+  ];
+
+  const index = Math.min(Math.max(attempt, 0), templates.length - 1);
+  const template = templates[index] ?? templates[0];
+  if (!template) {
+    const fallbackHeadline =
+      preview.length > 3
+        ? `"${preview}" sorğunuzu qeydə aldım və komandamızla dəqiqləşdiririk.`
+        : 'Sorğunuzu qeydə aldım və komandamızla dəqiqləşdiririk.';
+    return [
+      {
+        type: 'text' as const,
+        body: fallbackHeadline
+      },
+      {
+        type: 'text' as const,
+        body: 'İnsan əməkdaşımız tezliklə cavab verəcək, zəhmət olmasa bildirişləri izləyin.'
+      }
+    ];
+  }
+  return [
+    {
+      type: 'text' as const,
+      body: template.headline
+    },
+    {
+      type: 'text' as const,
+      body: template.followUp
+    }
+  ];
+}
+
+function dedupeMessages(messages: AgentReplyMessage[]): AgentReplyMessage[] {
+  const seen = new Set<string>();
+  const result: AgentReplyMessage[] = [];
+  for (const message of messages) {
+    if (message.type !== 'text') {
+      result.push(message);
+      continue;
+    }
+    const signature = normalizeMessageSignature(message.body);
+    if (seen.has(signature)) {
+      continue;
+    }
+    seen.add(signature);
+    result.push(message);
+  }
+  return result;
 }

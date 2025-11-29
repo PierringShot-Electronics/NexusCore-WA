@@ -40,9 +40,14 @@ const EnvironmentSchema = z
     MCP_PORT: z.string().default('3030'),
     OPENAI_API_KEY: z.string().optional(),
     OPENAI_MODEL: z.string().default('gpt-4o-mini'),
+    OPENAI_VISION_MODEL: z.string().default('gpt-4o-mini'),
+    OPENAI_TRANSCRIPTION_MODEL: z.string().default('gpt-4o-mini-transcribe'),
     OPENAI_EMBEDDING_MODEL: z.string().default('text-embedding-3-small'),
     GROQ_API_KEY: z.string().optional(),
     GROQ_ROUTER_MODEL: z.string().default('llama-3.1-8b-instant'),
+    GROQ_COMPLETION_MODEL: z.string().default('llama-3.1-70b-versatile'),
+    GROQ_VISION_MODEL: z.string().default('llama-3.2-11b-vision-preview'),
+    GROQ_TRANSCRIPTION_MODEL: z.string().default('whisper-large-v3-turbo'),
     SESSION_SECRET: z.string().default('change-me'),
     BUFFER_TIMEOUT_MS: z
       .string()

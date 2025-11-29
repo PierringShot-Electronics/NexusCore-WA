@@ -8,53 +8,56 @@ export interface VisionInsight {
 }
 
 export async function analyzeImage(url: string): Promise<VisionInsight | null> {
-  if (!hasOpenAI || !openaiClient) {
-    return null;
-  }
+  const instructions =
+    'Sən PierringShot Electronics üçün texniki analiz mütəxəssisisən. ' +
+    'Şəkildən cihazın dəqiq modelini və görünən zədələri tap, təmir üçün kritik qeydləri çıxart. ' +
+    'Cavabı maksimum 4 maddəlik qısa bullet-lərlə təqdim et.';
 
-  try {
-    const response = await openaiClient.responses.create({
-      model: env.OPENAI_MODEL,
-      temperature: 0.2,
-      input: [
-        {
-          role: 'system',
-          content: [
-            {
-              type: 'input_text',
-              text:
-                'Sən PierringShot Electronics üçün texniki analiz mütəxəssisisən. ' +
-                'Şəkildən cihazın modelini, görünən zədələri və təmir üçün qeyd ediləcək əsas qeydləri çıxart. ' +
-                'Cavabı qısa maddələr şəklində saxla.'
-            }
-          ] as any
-        },
-        {
-          role: 'user',
-          content: [
-            { type: 'input_text', text: 'Bu şəkildən mümkün qədər çox məlumat çıxart' },
-            { type: 'input_image', image_url: url, detail: 'high' }
-          ] as any
-        }
-      ] as any
-    });
+  if (hasOpenAI && openaiClient) {
+    try {
+      const response = await openaiClient.responses.create({
+        model: env.OPENAI_VISION_MODEL,
+        temperature: 0.2,
+        input: [
+          {
+            role: 'system',
+            content: [
+              {
+                type: 'input_text',
+                text: instructions
+              }
+            ] as any
+          },
+          {
+            role: 'user',
+            content: [
+              { type: 'input_text', text: 'Bu şəkildən mümkün qədər çox məlumat çıxart' },
+              { type: 'input_image', image_url: url, detail: 'high' }
+            ] as any
+          }
+        ] as any
+      });
 
-    const summary = response.output_text?.trim();
-    if (!summary) {
-      return null;
+      const summary = response.output_text?.trim();
+      if (summary) {
+        return {
+          summary,
+          probableModel: extractModel(summary),
+          damageNotes: extractDamage(summary)
+        };
+      }
+
+      return {
+        summary: 'Şəkil analizi heç bir məna kəsb etmədi. İnsan operatoru dəqiqləşdirməlidir.'
+      };
+    } catch (error) {
+      return {
+        summary: `Şəkil analizi zamanı xəta baş verdi (${(error as Error).message}). İnsan operatoru tərəfindən yoxlayın.`
+      };
     }
-
-    return {
-      summary,
-      probableModel: extractModel(summary),
-      damageNotes: extractDamage(summary)
-    };
-  } catch (error) {
-    return {
-      summary:
-        `Şəkil analizi zamanı xəta baş verdi (${(error as Error).message}). İnsan operatoru tərəfindən yoxlayın.`
-    };
   }
+
+  return null;
 }
 
 function extractModel(text: string): string | undefined {

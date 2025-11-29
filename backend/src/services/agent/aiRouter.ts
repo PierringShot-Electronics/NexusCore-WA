@@ -1,4 +1,4 @@
-import { groqClient, hasGroq, openaiClient, hasOpenAI } from '../../config/ai';
+import { openaiClient, hasOpenAI, groqClient, hasGroq } from '../../config/ai';
 import { env } from '../../config/env';
 import { logger } from '../../utils/logger';
 
@@ -31,24 +31,6 @@ Mətn verilir. JSON formatında cavab ver:
 }
 Mətn: """${message}"""`.trim();
 
-  if (hasGroq && groqClient) {
-    try {
-      const completion = await groqClient.chat.completions.create({
-        model: env.GROQ_ROUTER_MODEL,
-        messages: [
-          { role: 'system', content: 'JSON formatında cavab ver. Başqa heç nə yazma.' },
-          { role: 'user', content: prompt }
-        ],
-        temperature: 0
-      });
-
-      const content = completion.choices[0]?.message?.content ?? '{}';
-      return parseIntent(content);
-    } catch (error) {
-      logger.warn({ err: error }, 'Groq intent classification failed');
-    }
-  }
-
   if (hasOpenAI && openaiClient) {
     try {
       const completion = await openaiClient.responses.create({
@@ -69,6 +51,24 @@ Mətn: """${message}"""`.trim();
       return parseIntent(text);
     } catch (error) {
       logger.warn({ err: error }, 'OpenAI fallback intent classification failed');
+    }
+  }
+
+  if (hasGroq && groqClient) {
+    try {
+      const completion = await groqClient.chat.completions.create({
+        model: env.GROQ_ROUTER_MODEL,
+        messages: [
+          { role: 'system', content: 'JSON formatında cavab ver. Başqa heç nə yazma.' },
+          { role: 'user', content: prompt }
+        ],
+        temperature: 0
+      });
+
+      const content = completion.choices[0]?.message?.content ?? '{}';
+      return parseIntent(content);
+    } catch (error) {
+      logger.warn({ err: error }, 'Groq intent classification failed');
     }
   }
 

@@ -5,11 +5,13 @@ import type { PersistedMessage } from './contextManager';
 import type { ToolSummary } from './toolExecutor';
 import { logger } from '../../utils/logger';
 import type { AgentReplyMessage } from './wahaClient';
+import type { PersonaDecision } from './personaStrategy';
 
 interface ResponseBuilderOptions {
   recentMessages: PersistedMessage[];
   userMessage: string;
   tools: ToolSummary;
+  persona: PersonaDecision;
 }
 
 export async function buildAssistantReply(
@@ -25,14 +27,23 @@ export async function buildAssistantReply(
     ];
   }
 
-  const { recentMessages, userMessage, tools } = options;
+  const { recentMessages, userMessage, tools, persona } = options;
   const systemPrompt = await loadBusinessPrompt();
 
   const contextBlock = renderContext(recentMessages);
   const toolBlock = renderTools(tools);
+  const personaBlock = renderPersona(persona);
+
+  const orchestrationBlock = renderOrchestrationBrief(tools);
 
   const prompt = `
 ${systemPrompt}
+
+[Persona Yönləndirilməsi]
+${personaBlock}
+
+[Multi-Agent Orkestrasiya]
+${orchestrationBlock}
 
 [Kontekst]
 ${contextBlock}
@@ -43,30 +54,44 @@ ${toolBlock}
 [Tapşırıq]
 - Cavabı WhatsApp üçün 2-3 qısa mesaj şəklində hazırla.
 - Əsas məqamları **qalın** vurğula.
+- Səs transkriptləri və vizual qeydləri cavabda inteqrasiya et (mövcuddursa).
 - Əgər məlumat çatışmırsa, səmimi şəkildə xəbərdar et və alternativ təklif et.
+- İnsan operatoruna yalnız həqiqətən zəruri hallarda (məsələn, gizli məlumat, fiziki müdaxilə və ya səlahiyyət hüdudundan kənar mövzular) yönləndir; əks halda cavabı özün tamamla.
+- Rioz riskli hallarda (batareya şişməsi, qoxu və s.) cihazı dərhal servisə gətirməyi tövsiyə et.
 - Nəticədə insan operatora ehtiyac varsa qeyd et.
 `.trim();
 
   try {
-    const completion = await openaiClient.responses.create({
-      model: env.OPENAI_MODEL,
-      temperature: 0.4,
-      input: [
-        { role: 'system', content: prompt },
-        { role: 'user', content: userMessage }
-      ]
-    });
+    const candidates = buildModelCandidates(persona);
+    if (!hasOpenAI || !openaiClient || !candidates.length) {
+      throw new Error('OpenAI client unavailable for assistant reply');
+    }
 
-    const text = completion.output_text ?? '';
-    const messages = text
-      .split(/\n{2,}/)
-      .map((chunk) => chunk.trim())
-      .filter(Boolean)
-      .map<AgentReplyMessage>((body) => ({ type: 'text', body }));
+    for (const candidate of candidates) {
+      try {
+        const text = await generateWithModel({
+          model: candidate.model,
+          temperature: candidate.temperature,
+          prompt,
+          userMessage
+        });
 
-    return messages.length > 0
-      ? messages
-      : [{ type: 'text', body: text || 'Məlumat hazırdır.' }];
+        const messages = transformTextToReplies(text);
+        if (messages.length) {
+          return messages;
+        }
+      } catch (candidateError) {
+        logger.warn(
+          {
+            err: candidateError,
+            model: candidate.model
+          },
+          'Assistant reply generation failed via OpenAI candidate'
+        );
+      }
+    }
+
+    throw new Error('No available OpenAI model produced a response');
   } catch (error) {
     logger.error({ err: error }, 'Failed to build assistant reply');
     return [
@@ -77,6 +102,11 @@ ${toolBlock}
       }
     ];
   }
+}
+
+interface ModelCandidate {
+  model: string;
+  temperature: number;
 }
 
 function renderContext(messages: PersistedMessage[]): string {
@@ -137,6 +167,100 @@ function renderTools(tools: ToolSummary): string {
   return parts.length ? parts.join('\n') : 'Alət məlumatı yoxdur.';
 }
 
+function renderPersona(persona: PersonaDecision): string {
+  const guidelines = persona.profile.guidelines
+    .map((line, index) => `${index + 1}. ${line}`)
+    .join('\n');
+
+  return `${persona.profile.title} – ${persona.profile.summary}
+Rasionale: ${persona.rationale}
+Yanaşma:
+${guidelines}`;
+}
+
+function renderOrchestrationBrief(tools: ToolSummary): string {
+  const cues: string[] = [];
+  cues.push(
+    'Səs transkriptləri `[Səs mesajı]` prefiksi ilə verilə bilər; əsas sitatları kontekstə qat.'
+  );
+  if (tools.vision) {
+    cues.push('Vision nəticələrindəki ehtimal olunan model və zədə qeydlərini cavabda qeyd et.');
+  } else {
+    cues.push('Əgər vizual nəticə yoxdur, lakin foto göndərilibsə, operatora yönləndirməyi nəzərdən keçir.');
+  }
+
+  if (tools.stock?.matches?.length) {
+    cues.push('Stok nəticələrində SKU və stok səviyyələrini cavabda paylaş.');
+  }
+  if (tools.competitors?.offers?.length) {
+    cues.push('Rəqib qiymətlərindən qısa müqayisə qur.');
+  }
+  if (tools.pricing) {
+    cues.push('Dinamik təklif hesablamasını AZN olaraq aydın yaz.');
+  }
+
+  cues.push('Cavabları 2-3 mesajdan çox etmə, hər mesaj 1-2 cümlə olsun.');
+
+  return cues.map((cue, index) => `${index + 1}. ${cue}`).join('\n');
+}
+
+function buildModelCandidates(persona: PersonaDecision): ModelCandidate[] {
+  const candidates: ModelCandidate[] = [];
+
+  const preferredModel = persona.profile.preferredModel ?? env.OPENAI_MODEL;
+
+  if (preferredModel) {
+    candidates.push({
+      model: preferredModel,
+      temperature: persona.profile.temperature
+    });
+  }
+
+  if (!candidates.length && env.OPENAI_MODEL) {
+    candidates.push({
+      model: env.OPENAI_MODEL,
+      temperature: persona.profile.temperature
+    });
+  }
+
+  return candidates;
+}
+
+async function generateWithModel(options: {
+  model: string;
+  temperature: number;
+  prompt: string;
+  userMessage: string;
+}): Promise<string> {
+  if (!openaiClient) {
+    throw new Error('OpenAI client is unavailable');
+  }
+
+  const completion = await openaiClient.responses.create({
+    model: options.model,
+    temperature: options.temperature,
+    input: [
+      { role: 'system', content: options.prompt },
+      { role: 'user', content: options.userMessage }
+    ]
+  });
+
+  return completion.output_text ?? '';
+}
+
+function transformTextToReplies(text: string): AgentReplyMessage[] {
+  const parsed = attemptJsonMessageExtraction(text);
+  if (parsed.length) {
+    return parsed;
+  }
+
+  return text
+    .split(/\n{2,}/)
+    .map((chunk) => chunk.trim())
+    .filter(Boolean)
+    .map<AgentReplyMessage>((body) => ({ type: 'text', body }));
+}
+
 function serializeContent(content: Record<string, unknown>): string {
   try {
     if ('consolidated' in content) {
@@ -146,5 +270,54 @@ function serializeContent(content: Record<string, unknown>): string {
     return JSON.stringify(content);
   } catch {
     return String(content);
+  }
+}
+
+function attemptJsonMessageExtraction(text: string): AgentReplyMessage[] {
+  const cleaned = text.trim();
+  if (!cleaned.startsWith('{') && !cleaned.startsWith('[')) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(cleaned) as {
+      messages?: Array<{ body?: string; type?: string }>;
+      message?: Array<{ body?: string; type?: string }>;
+      content?: Array<{ body?: string; type?: string }>;
+    };
+
+    const arrays: Array<Array<{ body?: string; type?: string }>> = [];
+    if (Array.isArray(parsed.messages)) {
+      arrays.push(parsed.messages);
+    }
+    if (Array.isArray(parsed.message)) {
+      arrays.push(parsed.message);
+    }
+    if (Array.isArray(parsed.content)) {
+      arrays.push(parsed.content);
+    }
+
+    const flattened = arrays.flat();
+    if (!flattened.length) {
+      return [];
+    }
+
+    return flattened
+      .map((item) => {
+        const body = typeof item.body === 'string' ? item.body.trim() : '';
+        if (!body) {
+          return null;
+        }
+        const normalizedType =
+          typeof item.type === 'string' ? item.type.trim().toLowerCase() : 'text';
+        if (normalizedType !== 'text') {
+          return null;
+        }
+        return { type: 'text' as const, body };
+      })
+      .filter((item): item is AgentReplyMessage => Boolean(item));
+  } catch (error) {
+    logger.debug({ err: error }, 'Failed to parse LLM JSON reply');
+    return [];
   }
 }

@@ -6,7 +6,7 @@
 ![Redis](https://img.shields.io/badge/Redis-7--alpine-DC382D?logo=redis&logoColor=white)
 ![Docker Compose](https://img.shields.io/badge/Docker%20Compose-ready-2496ED?logo=docker&logoColor=white)
 
-> **TL;DR**: WAHA + Express/TypeScript + PostgreSQL(pgvector) + Redis üzərində qurulan, GPT-4o & Groq modelləri ilə zənginləşdirilmiş multimodal satış və servis avtomatlaşdırma ekosistemi.
+> **TL;DR**: WAHA + Express/TypeScript + PostgreSQL(pgvector) + Redis üzərində qurulan, OpenAI GPT-4o modelləri ilə multimodal satış və servis avtomatlaşdırma ekosistemi.
 
 ![NexusCore-WA Preview](https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExYnZybmRpeTduZDZkMjlzYzZnNXhjeTVzOXMwNTU3Z2h1NHRnNjBpZCZlcD12MV9naWZzX3NlYXJjaCZjdD1n/3o85xkPOu65qCIc3nq/giphy.gif)
 
@@ -37,7 +37,11 @@ docker-compose.yml
 1. **Ətraf Mühit Hazırlığı**  
    - Docker Engine ≥ 24  
    - Docker Compose v2  
-   - `OPENAI_API_KEY`, `GROQ_API_KEY`, `WAHA_API_KEY`, `WAHA_DASHBOARD_USERNAME`/`WAHA_DASHBOARD_PASSWORD`, `WHATSAPP_SWAGGER_USERNAME`/`WHATSAPP_SWAGGER_PASSWORD` dəyərlərini hazırlayın. Güclü şifrələr üçün `openssl rand -hex 32` və ya `openssl rand -base64 24` istifadə edin.
+   - Aşağıdakı dəyişənləri hazır saxlayın (hamısı `.env` daxilində təyin olunur):
+     - `OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_VISION_MODEL`, `OPENAI_TRANSCRIPTION_MODEL`
+     - `WAHA_API_KEY`, `WAHA_DASHBOARD_USERNAME`/`WAHA_DASHBOARD_PASSWORD`
+     - `WHATSAPP_SWAGGER_USERNAME`/`WHATSAPP_SWAGGER_PASSWORD`
+   - Güclü şifrələr üçün `openssl rand -hex 32` və ya `openssl rand -base64 24` istifadə edin.
 
 2. **Konfiqurasiya**  
    ```bash
@@ -68,8 +72,8 @@ docker-compose.yml
    Collation mismatch xəbərdarlıqları görsəniz `bash scripts/postgres_refresh_collation.sh` icra edin.
 
 ## Multimodal Prosessinq
-- **Səs mesajları:** WAHA-dan gələn audio/PTT faylları avtomatik endirilir, OpenAI `gpt-4o-mini-transcribe` və ya ehtiyac olduqda Groq `whisper-large-v3` ilə transkripsiya olunur, nəticə kontekstə `[Səs mesajı] ...` kimi əlavə edilir.
-- **Şəkil / Video:** Vision (GPT‑4o) ilk şəkili analiz edir; video mesajları və sənədlər üçün link + caption qeydləri yaradılır ki, operatorlar və LLM eyni məlumatı görsün.
+- **Səs mesajları:** WAHA-dan gələn audio/PTT faylları avtomatik endirilir və OpenAI `OPENAI_TRANSCRIPTION_MODEL` (default `gpt-4o-mini-transcribe`) ilə transkripsiya olunur. Nəticə kontekstə `[Səs mesajı] ...` prefiksi ilə əlavə olunur.
+- **Şəkil / Video:** Vision analizi üçün `OPENAI_VISION_MODEL` (default GPT‑4o) çalışır; OpenAI əlçatan deyilsə `GROQ_VISION_MODEL` fallback edilir. Video mesajları və sənədlər üçün link + caption qeydləri yaradılır ki, operatorlar və LLM eyni məlumatı görsün.
 - **Sənədlər:** PDF və digər faylların linkləri cavaba əlavə olunur, mətnə çevrilmə tələb olunarsa növbəti iterasiyada genişləndirilə bilər.
 
 ## İnkişaf & Skriptlər
@@ -99,7 +103,7 @@ npm run dev
 
 ## Təhlükəsizlik & Konfiqurasiya
 - `.env` paylaşıla bilməz; yalnız `.env.example` commit olunur.
-- WAHA/OpenAI/Groq açarlarını CI və ya gizli menecerlərdə saxlayın. `WAHA_API_KEY` və WAHA dashboard/swagger hesablarını default dəyərlərdə saxlamayın; dəyişiklikdən sonra `sudo bash scripts/start_clean.sh && bash scripts/waha_session.sh`.
+- WAHA və OpenAI açarlarını CI və ya gizli menecerlərdə saxlayın. `WAHA_API_KEY` və WAHA dashboard/swagger hesablarını default dəyərlərdə saxlamayın; dəyişiklikdən sonra `sudo bash scripts/start_clean.sh && bash scripts/waha_session.sh`.
 - Şübhəli mesajlarda `STOP` komandasını və dashboard “Takeover” funksiyasını istifadə edin.
 - MCP server (`backend/src/mcp/server.ts`) yalnız daxili şəbəkədə açıq saxlayın və `X-Api-Key` header-i tələb edən reverse proxy arxasında yerləşdirin.
 

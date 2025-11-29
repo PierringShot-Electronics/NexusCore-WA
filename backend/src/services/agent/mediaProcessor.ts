@@ -4,12 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { toFile } from 'openai/uploads';
 import type { BufferedMessagePayload } from '../buffer/smartBuffer';
 import { env } from '../../config/env';
-import {
-  hasGroq,
-  groqClient,
-  hasOpenAI,
-  openaiClient
-} from '../../config/ai';
+import { hasOpenAI, openaiClient, hasGroq, groqClient } from '../../config/ai';
 import { logger } from '../../utils/logger';
 
 export interface MediaProcessingSummary {
@@ -146,7 +141,7 @@ async function transcribeAudioAttachment(
       });
       const result = (await openaiClient.audio.transcriptions.create({
         file,
-        model: 'gpt-4o-mini-transcribe',
+        model: env.OPENAI_TRANSCRIPTION_MODEL,
         response_format: 'verbose_json'
       })) as {
         text?: string;
@@ -162,7 +157,7 @@ async function transcribeAudioAttachment(
         return text.trim();
       }
     } catch (error) {
-      logger.warn({ err: error }, 'OpenAI transcription failed, falling back');
+      logger.warn({ err: error }, 'OpenAI transcription failed');
     }
   }
 
@@ -173,14 +168,14 @@ async function transcribeAudioAttachment(
       });
       const result = (await groqClient.audio.transcriptions.create({
         file,
-        model: 'whisper-large-v3'
+        model: env.GROQ_TRANSCRIPTION_MODEL
       })) as { text?: string };
 
       if (result?.text) {
         return result.text.trim();
       }
     } catch (error) {
-      logger.warn({ err: error }, 'Groq transcription failed');
+      logger.warn({ err: error }, 'Groq transcription fallback failed');
     }
   }
 

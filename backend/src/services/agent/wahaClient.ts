@@ -3,6 +3,7 @@ import QRCode from 'qrcode';
 import type { BufferedMessagePayload } from '../buffer/smartBuffer';
 import { env } from '../../config/env';
 import { logger } from '../../utils/logger';
+import { extractTextFromBufferedMessage } from './textUtils';
 
 export interface SendPayload {
   chatId: string;
@@ -94,8 +95,9 @@ export class WahaClient {
   public buildBufferedSummary(buffered: BufferedMessagePayload[]): string {
     const parts: string[] = [];
     for (const item of buffered) {
-      if (item.type === 'text' && item.text) {
-        parts.push(item.text.trim());
+      const text = extractTextFromBufferedMessage(item);
+      if (text) {
+        parts.push(text);
       }
     }
     return parts.join(' ').trim();
