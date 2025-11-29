@@ -59,6 +59,43 @@ export class AgentService {
       }
     });
 
+    const primaryText = consolidated.text?.trim().toLowerCase() ?? '';
+    if (primaryText) {
+      const greetingPatterns = [/^s[aə]lam!?$/i, /^h(e|ə)y!?$/i, /^nec[əe]s[əe]n\??$/i];
+      const isGreeting = greetingPatterns.some((regex) => regex.test(primaryText));
+
+      if (isGreeting) {
+        const greetingReply = [
+          {
+            type: 'text' as const,
+            body: 'Salam! 👋 PierringShot Electronics-ə xoş gəlmisiniz.'
+          },
+          {
+            type: 'text' as const,
+            body: 'Məhsul və ya texniki dəstək haqqında sualınız varsa, buyurun yazın – sevinərək kömək edərəm.'
+          }
+        ];
+        await wahaClient.sendMessages({ chatId: chatExternalId, messages: greetingReply });
+        await contextManager.appendMessage({
+          chatId,
+          role: 'assistant',
+          messageType: 'reply',
+          content: {
+            intent: {
+              needsStock: false,
+              needsCompetitors: false,
+              needsPricing: false,
+              needsVision: false,
+              handover: false
+            },
+            tools: {},
+            messages: greetingReply
+          }
+        });
+        return;
+      }
+    }
+
     const recentMessages = await contextManager.getRecentMessages(chatId);
 
     logger.info(
