@@ -3,6 +3,7 @@ import { searchCompetitors } from '../tools/competitorSearch';
 import { calculateOffer } from '../tools/pricing';
 import { analyzeImage } from '../tools/imageAnalysis';
 import type { BufferedMessagePayload } from '../buffer/smartBuffer';
+import type { VisionInsight } from '../tools/imageAnalysis';
 
 export interface ToolContext {
   userMessage: string;
@@ -16,11 +17,16 @@ export interface ToolDecision {
   needsVision: boolean;
 }
 
+export interface VisionSummaryEntry extends VisionInsight {
+  imageUrl: string;
+  index: number;
+}
+
 export interface ToolSummary {
   stock?: Awaited<ReturnType<typeof lookupInternalStock>>;
   competitors?: Awaited<ReturnType<typeof searchCompetitors>>;
   pricing?: ReturnType<typeof calculateOffer>;
-  vision?: Awaited<ReturnType<typeof analyzeImage>>;
+  vision?: VisionSummaryEntry[];
 }
 
 export async function executeTools(
@@ -30,9 +36,21 @@ export async function executeTools(
   const results: ToolSummary = {};
 
   if (decision.needsVision) {
-    const firstImage = context.buffered.find((msg) => msg.type === 'image');
-    if (firstImage?.imageUrl) {
-      results.vision = await analyzeImage(firstImage.imageUrl);
+    const imageMessages = context.buffered.filter(
+      (msg): msg is BufferedMessagePayload & { imageUrl: string } =>
+        msg.type === 'image' && typeof msg.imageUrl === 'string'
+    );
+
+    const insights: VisionSummaryEntry[] = [];
+    for (const [index, message] of imageMessages.slice(0, 3).entries()) {
+      const insight = await analyzeImage(message.imageUrl);
+      if (insight) {
+        insights.push({ ...insight, imageUrl: message.imageUrl, index });
+      }
+    }
+
+    if (insights.length) {
+      results.vision = insights;
     }
   }
 

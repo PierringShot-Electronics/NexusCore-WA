@@ -6,7 +6,7 @@
 ![Redis](https://img.shields.io/badge/Redis-7--alpine-DC382D?logo=redis&logoColor=white)
 ![Docker Compose](https://img.shields.io/badge/Docker%20Compose-ready-2496ED?logo=docker&logoColor=white)
 
-> **TL;DR**: WAHA + Express/TypeScript + PostgreSQL(pgvector) + Redis üzərində qurulan, OpenAI GPT-4o modelləri ilə multimodal satış və servis avtomatlaşdırma ekosistemi.
+> **TL;DR**: WAHA + Express/TypeScript + PostgreSQL(pgvector) + Redis üzərində qurulan, OpenAI GPT-4o modelləri (Groq fallback-ları ilə) əsaslı multimodal satış və servis avtomatlaşdırma ekosistemi.
 
 ![NexusCore-WA Preview](https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExYnZybmRpeTduZDZkMjlzYzZnNXhjeTVzOXMwNTU3Z2h1NHRnNjBpZCZlcD12MV9naWZzX3NlYXJjaCZjdD1n/3o85xkPOu65qCIc3nq/giphy.gif)
 
@@ -38,9 +38,10 @@ docker-compose.yml
    - Docker Engine ≥ 24  
    - Docker Compose v2  
    - Aşağıdakı dəyişənləri hazır saxlayın (hamısı `.env` daxilində təyin olunur):
-     - `OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_VISION_MODEL`, `OPENAI_TRANSCRIPTION_MODEL`
-     - `WAHA_API_KEY`, `WAHA_DASHBOARD_USERNAME`/`WAHA_DASHBOARD_PASSWORD`
-     - `WHATSAPP_SWAGGER_USERNAME`/`WHATSAPP_SWAGGER_PASSWORD`
+    - `OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_VISION_MODEL`, `OPENAI_TRANSCRIPTION_MODEL`
+    - (opsional) `GROQ_API_KEY`, `GROQ_ROUTER_MODEL`, `GROQ_COMPLETION_MODEL`, `GROQ_VISION_MODEL`, `GROQ_TRANSCRIPTION_MODEL`
+    - `WAHA_API_KEY`, `WAHA_DASHBOARD_USERNAME`/`WAHA_DASHBOARD_PASSWORD`
+    - `WHATSAPP_SWAGGER_USERNAME`/`WHATSAPP_SWAGGER_PASSWORD`
    - Güclü şifrələr üçün `openssl rand -hex 32` və ya `openssl rand -base64 24` istifadə edin.
 
 2. **Konfiqurasiya**  
@@ -72,7 +73,7 @@ docker-compose.yml
    Collation mismatch xəbərdarlıqları görsəniz `bash scripts/postgres_refresh_collation.sh` icra edin.
 
 ## Multimodal Prosessinq
-- **Səs mesajları:** WAHA-dan gələn audio/PTT faylları avtomatik endirilir və OpenAI `OPENAI_TRANSCRIPTION_MODEL` (default `gpt-4o-mini-transcribe`) ilə transkripsiya olunur. Nəticə kontekstə `[Səs mesajı] ...` prefiksi ilə əlavə olunur.
+- **Səs mesajları:** WAHA-dan gələn audio/PTT faylları avtomatik endirilir və OpenAI `OPENAI_TRANSCRIPTION_MODEL` (default `whisper-large-v3-turbo`) ilə transkripsiya olunur; OpenAI əlçatan olmazsa Groq `GROQ_TRANSCRIPTION_MODEL` fallback kimi çağırılır. Nəticə kontekstə `[Səs mesajı] ...` prefiksi ilə əlavə olunur.
 - **Şəkil / Video:** Vision analizi üçün `OPENAI_VISION_MODEL` (default GPT‑4o) çalışır; OpenAI əlçatan deyilsə `GROQ_VISION_MODEL` fallback edilir. Video mesajları və sənədlər üçün link + caption qeydləri yaradılır ki, operatorlar və LLM eyni məlumatı görsün.
 - **Sənədlər:** PDF və digər faylların linkləri cavaba əlavə olunur, mətnə çevrilmə tələb olunarsa növbəti iterasiyada genişləndirilə bilər.
 

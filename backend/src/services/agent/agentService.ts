@@ -177,6 +177,36 @@ export class AgentService {
 
     const intent = await classifyIntent(userMessage);
 
+    const normalizedUserMessage = userMessage.toLowerCase();
+    const explicitHandoverRequest = /(insan|operator|menecer|human|real adam)/i.test(
+      normalizedUserMessage
+    );
+
+    if (intent.handover && !explicitHandoverRequest) {
+      intent.handover = false;
+    }
+
+    const productRegex = /(məhsul|varm[ıi]|stok|sat[ıi]l[ıi]r|əlində nə var|modellər)/i;
+    if (productRegex.test(normalizedUserMessage)) {
+      intent.needsStock = true;
+    }
+
+    const pricingRegex = /(neçəyə|qiymət|price|kaç)/i;
+    if (pricingRegex.test(normalizedUserMessage)) {
+      intent.needsPricing = true;
+    }
+
+    const competitorRegex = /(başqa yerdə|tap\.az|rəqib|ucuz)/i;
+    if (competitorRegex.test(normalizedUserMessage)) {
+      intent.needsCompetitors = true;
+    }
+
+    const repairRegex = /(təmir|servis|termopasta|fan|ekran|batareya|adapter|toz|qızır|soyutma)/i;
+    if (repairRegex.test(normalizedUserMessage)) {
+      // ensure we prioritise diagnostics persona and avoid unnecessary handover
+      intent.needsVision = intent.needsVision || false;
+    }
+
     if (intent.handover) {
       const handoverMessage = [
         {
@@ -205,7 +235,8 @@ export class AgentService {
     }
 
     if (bufferedMessages.some((msg) => msg.type === 'audio')) {
-      intent.needsStock = intent.needsStock || userMessage.length > 0;
+      // audio sorğuları adətən əlavə izah tələb edir, kontekstə transkript daxil ediləcək
+      intent.needsStock = intent.needsStock || productRegex.test(normalizedUserMessage);
     }
 
     const toolResults = await executeTools(intent, {
@@ -216,7 +247,7 @@ export class AgentService {
     const hasAudio = bufferedMessages.some((msg) => msg.type === 'audio');
     const hasVisionCandidate =
       bufferedMessages.some((msg) => msg.type === 'image' || msg.type === 'video') ||
-      Boolean(toolResults.vision);
+      Boolean(toolResults.vision && toolResults.vision.length > 0);
 
     const personaDecision: PersonaDecision = determinePersona({
       intent,

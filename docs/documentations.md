@@ -58,11 +58,11 @@ WhatsApp istifadəçiləri tez-tez qısa, ardıcıl səsli mesajlar göndərməy
 Daxilolma: Səsli mesaj gəldikdə, sistem onu dərhal emal etmir. Redis-də həmin istifadəçi üçün bir audio_buffer siyahısı yaradılır və mesaj ora əlavə edilir.
 Timer: Hər yeni mesaj gəldikdə, 5-8 saniyəlik bir taymer sıfırlanır.
 Birləşdirmə: Taymer bitdikdə (yəni istifadəçi danışmağı dayandırdıqda), buferdəki bütün audio fayllar xronoloji ardıcıllıqla birləşdirilir (ffmpeg vasitəsilə).
-Transkripsiya: Birləşdirilmiş audio fayl OpenAI `OPENAI_TRANSCRIPTION_MODEL` (default `gpt-4o-mini-transcribe`) ilə emal edilir.
+Transkripsiya: Birləşdirilmiş audio fayl OpenAI `OPENAI_TRANSCRIPTION_MODEL` (default `whisper-large-v3-turbo`) ilə emal edilir; OpenAI cavab verməzsə sistem Groq `GROQ_TRANSCRIPTION_MODEL` ilə eyni prosesi təkrar edir.
 Emal: Alınan mətn, (AUDIO) etiketi ilə işarələnərək əsas AI modelinə göndərilir.
 4.2 Görüntü Analizi və Veb Axtarış İnteqrasiyası
 İstifadəçi noutbukun fotosunu və ya model etiketinin şəklini göndərdikdə, sistem aşağıdakı "Vision Pipeline"ı işə salır:
-OCR və Təsvir: Görüntü OpenAI GPT-4o Vision modelinə göndərilir. Prompt: "Bu şəkildəki cihazın modelini, seriya nömrəsini və vizual vəziyyətini (ekran qırığı, cızıqlar) təyin et.".
+OCR və Təsvir: Hər bir foto (ilk 3 şəkil) OpenAI GPT-4o Vision modelinə JSON formatlı tapşırıqla göndərilir. Modeldən `summary`, `probableModel`, `damageNotes`, `ocrText` sahələrini doldurması tələb olunur; OpenAI cavab verməzsə Groq Vision fallback çağırılır.
 Modelin Dəqiqləşdirilməsi: Əgər model tam oxunmursa, sistem müştəridən dəqiqləşdirmə istəyir.
 Spesifikasiya Axtarışı: Model adı müəyyən edildikdən sonra (məsələn, "ASUS X515"), sistem google_search alətini çağıraraq cihazın ekran spesifikasiyalarını (ölçü, pin sayı, matris növü) axtarır.
 Daxili Axtarış: Tapılan spesifikasiyalar (məsələn, "15.6 inch 30 pin slim") daxili vektor bazasında axtarılır və uyğun ehtiyat hissəsi tapılır.
@@ -170,10 +170,10 @@ Persona Strategy (src/services/agent/personaStrategy.ts): Intent nəticələrin�
 Phase 4: Multimodal Pipelines
 Audio Pipeline (src/services/agent/mediaProcessor.ts):
 Debounce Logic: Smart buffer yerində qalır; audio/PTT mesajı buferə düşdükdə media prosessor WAHA URL-dən faylı endirir.
-Transkripsiya: Default olaraq OpenAI `OPENAI_TRANSCRIPTION_MODEL` (default `gpt-4o-mini-transcribe`) çağırılır; hazırkı quruluşda əlavə LLM fallback aktiv deyil.
+Transkripsiya: Default olaraq OpenAI `OPENAI_TRANSCRIPTION_MODEL` (default `whisper-large-v3-turbo`) çağırılır; OpenAI əlçatan deyilsə Groq `GROQ_TRANSCRIPTION_MODEL` fallback kimi istifadə olunur.
 Kontekst: Transkript `[Səs mesajı] ...` prefiksi ilə agent kontekstinə əlavə edilir, beləliklə LLM istifadəçinin dediklərini mətn kimi görür.
 Vision & Video:
-Şəkillər üçün `OPENAI_VISION_MODEL` (default GPT-4o Vision) çağırılır; sistemdə əlavə LLM fallback deaktivdir. Video mesajlarında link və caption qeydi yaradılır (gələcəkdə frame analizi üçün hook).
+Şəkillər üçün `OPENAI_VISION_MODEL` (default GPT-4o Vision) çağırılır və maksimum 3 şəkil üçün detallar toplanır; OpenAI əlçatan deyilsə Groq `GROQ_VISION_MODEL` fallback edilir. Video mesajlarında link və caption qeydi yaradılır (gələcəkdə frame analizi üçün hook).
 Documents:
 WAHA-dan gələn sənəd URL-ləri keşlənir və cavabda qeyd olunur; lazım olsa operator təsdiqi tələb olunur.
 Phase 5: Admin Panel & Security

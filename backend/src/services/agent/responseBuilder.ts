@@ -139,8 +139,20 @@ function normalizeTimestamp(value: Date | string | number): number {
 
 function renderTools(tools: ToolSummary): string {
   const parts: string[] = [];
-  if (tools.vision) {
-    parts.push(`Şəkil analizi: ${tools.vision.summary}`);
+  if (tools.vision?.length) {
+    const entries = tools.vision
+      .map((entry, idx) => {
+        const prefix = `Şəkil ${idx + 1}`;
+        const lines = [
+          `${prefix}: ${entry.summary}`,
+          entry.probableModel ? `• Model ehtimalı: ${entry.probableModel}` : null,
+          entry.damageNotes ? `• Zədə qeydləri: ${entry.damageNotes}` : null,
+          entry.ocrText ? `• Etiket/OCR: ${entry.ocrText}` : null
+        ].filter(Boolean);
+        return lines.join('\n');
+      })
+      .join('\n');
+    parts.push(entries);
   }
   if (tools.stock && tools.stock.matches.length) {
     const lines = tools.stock.matches
@@ -183,7 +195,7 @@ function renderOrchestrationBrief(tools: ToolSummary): string {
   cues.push(
     'Səs transkriptləri `[Səs mesajı]` prefiksi ilə verilə bilər; əsas sitatları kontekstə qat.'
   );
-  if (tools.vision) {
+  if (tools.vision?.length) {
     cues.push('Vision nəticələrindəki ehtimal olunan model və zədə qeydlərini cavabda qeyd et.');
   } else {
     cues.push('Əgər vizual nəticə yoxdur, lakin foto göndərilibsə, operatora yönləndirməyi nəzərdən keçir.');

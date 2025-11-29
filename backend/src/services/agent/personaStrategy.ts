@@ -33,7 +33,7 @@ export function determinePersona(options: PersonaOptions): PersonaDecision {
   const { intent, userMessage, tools, hasAudio, hasVision, hasComplaintHistory } = options;
   const normalizedMessage = userMessage.toLowerCase();
 
-  if (hasVision || intent.needsVision || Boolean(tools.vision)) {
+  if (hasVision || intent.needsVision || Boolean(tools.vision?.length)) {
     return {
       profile: PERSONAS.diagnostics,
       rationale: 'Vision və multimodal analiz tələb olunur.'
