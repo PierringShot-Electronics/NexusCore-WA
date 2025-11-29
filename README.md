@@ -12,7 +12,7 @@
 
 ## Layihəyə Baxış
 - **Missiya:** PierringShot Electronics-in müştəri sorğularını, satış təkliflərini və texniki dəstəyi avtonom şəkildə idarə edən AI ekosistemi qurmaq.
-- **Modalitələr:** Mətn, səs (Whisper), şəkil (Vision), vektor yaddaş (pgvector) və real vaxt rəqib analizi (Tap.az).
+- **Modalitələr:** Mətn, səs (Whisper/Transcribe), şəkil (Vision), video və sənəd qeydləri, vektor yaddaş (pgvector) və real vaxt rəqib analizi (Tap.az).
 - **Guardrails:** `biznes.md` sənədi əsas ton/qayda mənbəyidir; STOP/START komandaları ilə insan müdaxiləsi dəstəklənir.
 
 ## Sistem Arxitekturası
@@ -27,7 +27,7 @@ docker-compose.yml
 
 | Qovluq | Təsvir |
 | --- | --- |
-| `backend/src/` | Express API, Redis buferi, konteks meneceri, agent servis skeleti |
+| `backend/src/` | Express API, Redis buferi, multimodal media prosessoru, agent servis skeleti |
 | `dashboard/` | Next.js idarə paneli, canlı status modulu |
 | `postgres/init/` | `pgvector` aktivləşdirmə və başlanğıc sxem |
 | `data/products.csv` | Məhsul kataloqu, `npm run seed` ilə vektorlara yüklənir |
@@ -51,7 +51,7 @@ docker-compose.yml
    ```
    - Backend: `http://localhost:3000/healthz`  
    - Dashboard: `http://localhost:3002`  
-   - WAHA: `http://localhost:3001` (QR kodu loglarda görünəcək / yaxın zamanda dashboard-da)
+   - WAHA: `http://localhost:3001` (QR kodu dashboard `Admin → Session` panelində və ya `scripts/waha_session.sh` ilə)
 
 4. **Məlumat Yüklənməsi (Opsional, məsləhətdir)**  
    ```bash
@@ -65,6 +65,11 @@ docker-compose.yml
    python test_endpoints.py
    ```
    WAHA bağlantısı, backend sağlamlığı və Postgres əlaqəsini yoxlayır.
+
+## Multimodal Prosessinq
+- **Səs mesajları:** WAHA-dan gələn audio/PTT faylları avtomatik endirilir, OpenAI `gpt-4o-mini-transcribe` və ya ehtiyac olduqda Groq `whisper-large-v3` ilə transkripsiya olunur, nəticə kontekstə `[Səs mesajı] ...` kimi əlavə edilir.
+- **Şəkil / Video:** Vision (GPT‑4o) ilk şəkili analiz edir; video mesajları və sənədlər üçün link + caption qeydləri yaradılır ki, operatorlar və LLM eyni məlumatı görsün.
+- **Sənədlər:** PDF və digər faylların linkləri cavaba əlavə olunur, mətnə çevrilmə tələb olunarsa növbəti iterasiyada genişləndirilə bilər.
 
 ## İnkişaf & Skriptlər
 ```bash
@@ -90,7 +95,7 @@ npm run dev
 
 ## Təhlükəsizlik & Konfiqurasiya
 - `.env` paylaşıla bilməz; yalnız `.env.example` commit olunur.
-- WAHA/OpenAI/Groq açarlarını CI və ya gizli menecerlərdə saxlayın.
+- WAHA/OpenAI/Groq açarlarını CI və ya gizli menecerlərdə saxlayın. `WAHA_API_KEY`-i default `admin` buraxmayın, dəyişdikdən sonra `sudo bash scripts/start_clean.sh && bash scripts/waha_session.sh`.
 - Şübhəli mesajlarda `STOP` komandasını və dashboard “Takeover” funksiyasını istifadə edin.
 
 ## Git & Yayım Qaydası
