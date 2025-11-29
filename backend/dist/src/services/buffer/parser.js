@@ -30,8 +30,16 @@ function parseWahaWebhookBody(body) {
         id: firstMessage.id ?? (0, crypto_1.randomUUID)(),
         type,
         text: firstMessage.text?.body,
-        audioUrl: firstMessage.audio?.url,
+        audioUrl: firstMessage.audio?.url ?? firstMessage.voice?.url,
         imageUrl: firstMessage.image?.url,
+        videoUrl: firstMessage.video?.url,
+        documentUrl: firstMessage.document?.url,
+        mimeType: firstMessage.audio?.mime_type ??
+            firstMessage.voice?.mime_type ??
+            firstMessage.image?.mime_type ??
+            firstMessage.video?.mime_type ??
+            firstMessage.document?.mime_type,
+        caption: typeof firstMessage.caption === 'string' ? firstMessage.caption : undefined,
         raw: firstMessage,
         receivedAt: new Date(receivedAtMs).toISOString()
     };
@@ -45,9 +53,15 @@ function mapMessageType(type) {
         case 'text':
             return 'text';
         case 'audio':
+        case 'ptt':
+        case 'voice':
             return 'audio';
         case 'image':
             return 'image';
+        case 'video':
+            return 'video';
+        case 'document':
+            return 'document';
         default:
             return 'unknown';
     }

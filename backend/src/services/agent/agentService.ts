@@ -2,6 +2,12 @@ import { contextManager } from './contextManager';
 import { logger } from '../../utils/logger';
 import type { BufferedMessagePayload } from '../buffer/smartBuffer';
 import { detectCommand, type CommandType } from './commandHandler';
+import { classifyIntent } from './aiRouter';
+import { executeTools } from './toolExecutor';
+import { buildAssistantReply } from './responseBuilder';
+import { wahaClient } from './wahaClient';
+import { evaluateGuardrails } from './guardrails';
+import { processMediaMessages } from './mediaProcessor';
 
 interface HandleBufferedMessagesOptions {
   chatExternalId: string;
@@ -33,12 +39,14 @@ export class AgentService {
       return;
     }
 
+    const consolidated = await consolidateBufferedMessages(bufferedMessages);
+
     await contextManager.appendMessage({
       chatId,
       role: 'user',
       messageType: 'buffered',
       content: {
-        consolidated: consolidateBufferedMessages(bufferedMessages),
+        consolidated,
         raw: bufferedMessages
       }
     });
@@ -54,23 +62,109 @@ export class AgentService {
       'Prepared context for agent decision'
     );
 
-    // TODO: Route the consolidated message to the primary agent brain via OpenAI function calling.
-    // This is intentionally left as a follow-up task after infrastructure scaffolding.
+    const fallbackSummary = wahaClient.buildBufferedSummary(bufferedMessages);
+    const userMessage = (consolidated.text || fallbackSummary || 'İstifadəçi yeni mesaj göndərdi.').trim();
+    const intent = await classifyIntent(userMessage);
+
+    if (intent.handover) {
+      const handoverMessage = [
+        {
+          type: 'text' as const,
+          body:
+            'Sorğunuz daha detallıdır. İnsan əməkdaşımızla əlaqələndirirəm, zəhmət olmasa gözləyin.'
+        }
+      ];
+
+      await wahaClient.sendMessages({ chatId: chatExternalId, messages: handoverMessage });
+      await contextManager.appendMessage({
+        chatId,
+        role: 'assistant',
+        messageType: 'handover',
+        content: { intent, response: handoverMessage }
+      });
+      return;
+    }
+
+    if (
+      bufferedMessages.some(
+        (msg) => msg.type === 'image' || msg.type === 'video'
+      )
+    ) {
+      intent.needsVision = true;
+    }
+
+    if (bufferedMessages.some((msg) => msg.type === 'audio')) {
+      intent.needsStock = intent.needsStock || userMessage.length > 0;
+    }
+
+    const toolResults = await executeTools(intent, {
+      userMessage,
+      buffered: bufferedMessages
+    });
+
+    const assistantMessages = await buildAssistantReply({
+      recentMessages,
+      userMessage,
+      tools: toolResults
+    });
+
+    const filteredMessages = assistantMessages.filter((message) => {
+      const guardrail = evaluateGuardrails(message.body);
+      if (guardrail.blocked) {
+        logger.warn({ chatExternalId }, 'Message blocked by guardrail');
+        return false;
+      }
+      return true;
+    });
+
+    const outgoing = filteredMessages.length
+      ? filteredMessages
+      : [
+          {
+            type: 'text' as const,
+            body: 'Sorğunuzu insan əməkdaşımıza yönləndirirəm. Zəhmət olmasa gözləyin.'
+          }
+        ];
+
+    try {
+      await wahaClient.sendMessages({
+        chatId: chatExternalId,
+        messages: outgoing
+      });
+    } catch (error) {
+      logger.error({ err: error, chatExternalId }, 'Failed to deliver message via WAHA');
+    }
+
+    await contextManager.appendMessage({
+      chatId,
+      role: 'assistant',
+      messageType: 'reply',
+      content: {
+        intent,
+        tools: toolResults,
+        messages: outgoing
+      }
+    });
   }
 }
 
 export const agentService = new AgentService();
 
-function consolidateBufferedMessages(
+async function consolidateBufferedMessages(
   messages: BufferedMessagePayload[]
-): {
+): Promise<{
   text: string;
   audio: string[];
   images: string[];
-} {
+  videos: string[];
+  documents: string[];
+  notes: string[];
+}> {
   const textSegments: string[] = [];
   const audioUrls: string[] = [];
   const imageUrls: string[] = [];
+  const videoUrls: string[] = [];
+  const documentUrls: string[] = [];
 
   for (const message of messages) {
     if (message.type === 'text' && message.text) {
@@ -84,12 +178,40 @@ function consolidateBufferedMessages(
     if (message.type === 'image' && message.imageUrl) {
       imageUrls.push(message.imageUrl);
     }
+
+    if (message.type === 'video' && message.videoUrl) {
+      videoUrls.push(message.videoUrl);
+    }
+
+    if (message.type === 'document' && message.documentUrl) {
+      documentUrls.push(message.documentUrl);
+    }
   }
+
+  const mediaSummary = await processMediaMessages(messages);
+
+  for (const transcript of mediaSummary.audioTranscripts) {
+    if (transcript.transcript) {
+      textSegments.push(
+        `[Səs mesajı] ${transcript.transcript.trim()}`
+      );
+    }
+  }
+
+  const notes = [
+    ...mediaSummary.videoNotes.map((entry) => entry.note),
+    ...mediaSummary.documentNotes.map((entry) => entry.note)
+  ].filter(Boolean);
+
+  textSegments.push(...notes);
 
   return {
     text: textSegments.join(' ').trim(),
     audio: audioUrls,
-    images: imageUrls
+    images: imageUrls,
+    videos: videoUrls,
+    documents: documentUrls,
+    notes
   };
 }
 

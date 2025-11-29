@@ -8,6 +8,7 @@ const cors_1 = __importDefault(require("cors"));
 const express_1 = __importDefault(require("express"));
 const helmet_1 = __importDefault(require("helmet"));
 const webhook_1 = require("./routes/webhook");
+const admin_1 = require("./routes/admin");
 function createApp(buffer) {
     const app = (0, express_1.default)();
     app.use((0, helmet_1.default)());
@@ -18,5 +19,6 @@ function createApp(buffer) {
         response.status(200).json({ status: 'ok' });
     });
     app.use('/webhook', (0, webhook_1.createWebhookRouter)(buffer));
+    app.use('/admin', (0, admin_1.createAdminRouter)());
     return app;
 }

@@ -9,7 +9,11 @@ export interface WahaWebhookRequest {
     timestamp?: string;
     text?: { body: string };
     audio?: { url: string; mime_type?: string };
+    voice?: { url: string; mime_type?: string };
     image?: { url: string; mime_type?: string };
+    video?: { url: string; mime_type?: string };
+    document?: { url: string; mime_type?: string; filename?: string };
+    caption?: string;
     status?: string;
     [key: string]: unknown;
   }>;
@@ -62,8 +66,17 @@ export function parseWahaWebhookBody(
     id: firstMessage.id ?? randomUUID(),
     type,
     text: firstMessage.text?.body,
-    audioUrl: firstMessage.audio?.url,
+    audioUrl: firstMessage.audio?.url ?? firstMessage.voice?.url,
     imageUrl: firstMessage.image?.url,
+    videoUrl: firstMessage.video?.url,
+    documentUrl: firstMessage.document?.url,
+    mimeType:
+      firstMessage.audio?.mime_type ??
+      firstMessage.voice?.mime_type ??
+      firstMessage.image?.mime_type ??
+      firstMessage.video?.mime_type ??
+      firstMessage.document?.mime_type,
+    caption: typeof firstMessage.caption === 'string' ? firstMessage.caption : undefined,
     raw: firstMessage,
     receivedAt: new Date(receivedAtMs).toISOString()
   };
@@ -80,9 +93,15 @@ function mapMessageType(type?: string): BufferedMessageType {
     case 'text':
       return 'text';
     case 'audio':
+    case 'ptt':
+    case 'voice':
       return 'audio';
     case 'image':
       return 'image';
+    case 'video':
+      return 'video';
+    case 'document':
+      return 'document';
     default:
       return 'unknown';
   }
