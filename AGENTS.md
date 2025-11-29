@@ -16,6 +16,7 @@
 - `python test_endpoints.py`: Lightweight verification of `/healthz` and WAHA `/health`.
 - `bash scripts/waha_session.sh`: WAHA sessiyasını yarat və başlat, QR kodu çıxar.
 - `bash scripts/postgres_refresh_collation.sh`: Postgres collation versiyasını yenilə (glibc mismatch xəbərdarlıqlarını aradan qaldırır).
+- `npm run mcp:dev` (inside `backend/`): MCP serverini (`/mcp`) lokalda işə salır, WAHA ↔ OpenAI alətlərini təqdim edir.
 
 ## Coding Style & Naming Conventions
 - TypeScript across backend; enforce 2-space indentation, `camelCase` for variables/functions, `PascalCase` for classes. Multimodal kollektorlar (`mediaProcessor`) kimi genişləndirmələr üçün `src/services/agent/` daxilində yeni modullar istifadə et.
@@ -36,5 +37,6 @@
 ## Security & Configuration Tips
 - Never commit `.env`; copy from `.env.example` and inject secrets through Docker or CI variables.
 - Keep WAHA API keys and OpenAI/Groq tokens in secret managers. Rotate on suspicion of leakage və WAHA dashboard/swagger hesablarında default istifadəçi/parol saxlamayın.
+- MCP endpointini (`backend/src/mcp/server.ts`) yalnız daxili trafikin girişi üçün açın, ehtiyac olduqda əlavə autentifikasiya qatları tətbiq edin.
 - Səs/video fayllarını yalnız WAHA hostundan endir; üçüncü tərəf URL-lərini blokla.
 - Validate inbound payloads with Zod before processing; reject group messages unless explicitly whitelisted.

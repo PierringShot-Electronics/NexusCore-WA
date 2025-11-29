@@ -7,10 +7,13 @@
     "build": "rimraf dist && tsc -p tsconfig.json",
     "start": "node dist/src/index.js",
     "seed": "tsx scripts/seed.ts",
-    "smoke:test": "bash ../scripts/smoke_test.sh"
+    "smoke:test": "bash ../scripts/smoke_test.sh",
+    "mcp": "node dist/src/mcp/server.js",
+    "mcp:dev": "ts-node-dev --respawn --transpile-only src/mcp/server.ts"
   },
   "dependencies": {
     "axios": "^1.7.7",
+    "@modelcontextprotocol/sdk": "^1.23.0",
     "cheerio": "^1.0.0-rc.12",
     "cors": "^2.8.5",
     "csv-parse": "^5.5.0",
