@@ -33,6 +33,10 @@ const EnvironmentSchema = z
       })
       .transform((value) => value.trim()),
     WAHA_SESSION: z.string().default('default'),
+    WAHA_WEBHOOK_URL: z.string().url().default('http://app:3000/webhook'),
+    WAHA_WEBHOOK_EVENTS: z
+      .string()
+      .default('message,session.status'),
     MCP_PORT: z.string().default('3030'),
     OPENAI_API_KEY: z.string().optional(),
     OPENAI_MODEL: z.string().default('gpt-4o-mini'),

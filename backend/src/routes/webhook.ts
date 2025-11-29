@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { SmartBuffer } from '../services/buffer/smartBuffer';
+import { logger } from '../utils/logger';
 import { parseWahaWebhookBody } from '../services/buffer/parser';
 
 export function createWebhookRouter(buffer: SmartBuffer): Router {
@@ -9,6 +10,10 @@ export function createWebhookRouter(buffer: SmartBuffer): Router {
     const parsed = parseWahaWebhookBody(request.body);
 
     if (!parsed) {
+      logger.debug(
+        { payload: request.body },
+        'WAHA webhook payload ignored (unsupported format)'
+      );
       // Gracefully ignore unsupported payloads (ack required by WAHA).
       return response.status(202).json({ status: 'ignored' });
     }
