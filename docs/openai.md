@@ -208,3 +208,31 @@ görüldüyü kimi JSON obyektlərini tələb edir (məsələn,
 
 Bu cookbook sənədi layihədə tez-tez istifadə olunan nümunələri tək
 yerdə saxlayır; əlavə ssenari olduqda bura əlavə et.
+
+## 7. API Reference Snapshot
+
+OpenAI-nin tam [API Reference](https://platform.openai.com/docs/api-reference/)
+səhifəsi endpoint-lər, parametrlər və cavab strukturları üzrə
+detalları saxlayır. Bizim üçün ən kritik bölmələr:
+
+| Endpoint | İstifadə ssenarisi | Qısa qeydlər |
+| --- | --- | --- |
+| `/v1/responses` | Mətn və multimodal cavablar | `model`, `input`, `tools`, `stream` kimi sahələr; bütün nümunələrimiz bu endpoint üzərindədir. |
+| `/v1/audio/transcriptions` | PTT / audio yazılarının transkripti | `model=whisper-large-v3-turbo`, `response_format=verbose_json`. |
+| `/v1/embeddings` | Məhsul axtarışı üçün vektorlar | `model=text-embedding-3-small`, nəticə vektoru `pgvector` üçün istifadə olunur. |
+| `/v1/files` | Sənəd yükləmə və file_search | `purpose=user_data` ilə yüklə, ID-ni sonrakı sorğularda istifadə et. |
+
+Digər faydalı bəndlər:
+
+- **Authentication** – `Authorization: Bearer $OPENAI_API_KEY` header-i
+  tələb olunur (bkz. `/docs/api-reference/authentication`).
+- **Rate Limits** – `/docs/guides/rate-limits` – error 429 halda
+  exponential backoff tətbiq et; hazırda backend `agent-config` daxilində
+  retry-lərə ehtiyac duymursa da scriptlərdə nəzərə al.
+- **Streaming** – `/docs/guides/streaming-responses` – SSE ilə qismən
+  cavab almaq mümkündür; gələcək planlarda WhatsApp üçün typing effect!
+- **Vision & File guides** – `/docs/guides/images`, `/docs/guides/pdf-files`
+  – OCR və sənəd analizini genişləndirərkən istinad et.
+- **Function / Tool calling** – `/docs/guides/function-calling`,
+  `/docs/guides/tools` – WAHA agentinə əlavə backend funksiyaları bağlamaq
+  üçün istifadə oluna bilər.
