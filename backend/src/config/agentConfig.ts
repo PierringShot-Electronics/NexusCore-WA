@@ -13,11 +13,12 @@ const CONFIG_CANDIDATES = [
 ];
 
 const AgentConfigSchema = z.object({
-  heuristics: z.object({
-    greetingPatterns: z.array(z.string()).default(['^s[aə]lam!?$', '^h(e|ə)y!?$', '^nec[əe]s[əe]n\\??$']),
-    manualHandoverKeywords: z
-      .array(z.string())
-      .default(['insan', 'operator', 'menecer', 'human', 'real adam']),
+  heuristics: z
+    .object({
+      greetingPatterns: z.array(z.string()).default(['^s[aə]lam!?$', '^h(e|ə)y!?$', '^nec[əe]s[əe]n\\??$']),
+      manualHandoverKeywords: z
+        .array(z.string())
+        .default(['insan', 'operator', 'menecer', 'human', 'real adam']),
     productPatterns: z
       .array(z.string())
       .default(['məhsul', 'varm[ıi]', 'stok', 'sat[ıi]l[ıi]r', 'əlində nə var', 'modellər']),
@@ -26,19 +27,24 @@ const AgentConfigSchema = z.object({
     repairPatterns: z
       .array(z.string())
       .default(['təmir', 'servis', 'termopasta', 'fan', 'ekran', 'batareya', 'adapter', 'toz', 'qızır', 'soyutma']),
-    supportPatterns: z
-      .array(z.string())
-      .default(['şikayət', 'naraz', 'qaranti', 'zəmanət', 'yenə', 'problem', 'işləmir', 'gəlməyib', 'söndü', 'yanır']),
-    salesPatterns: z
-      .array(z.string())
-      .default(['qiymət', 'neçə', 'satılır', 'varmı', 'stok', 'almaq', 'sifariş'])
-  }),
-  vision: z.object({
-    maxImagesToProcess: z.number().int().min(1).max(10).default(3)
-  }),
-  logs: z.object({
-    historyLimit: z.number().int().min(50).max(1000).default(200)
-  })
+      supportPatterns: z
+        .array(z.string())
+        .default(['şikayət', 'naraz', 'qaranti', 'zəmanət', 'yenə', 'problem', 'işləmir', 'gəlməyib', 'söndü', 'yanır']),
+      salesPatterns: z
+        .array(z.string())
+        .default(['qiymət', 'neçə', 'satılır', 'varmı', 'stok', 'almaq', 'sifariş'])
+    })
+    .default({}),
+  vision: z
+    .object({
+      maxImagesToProcess: z.number().int().min(1).max(10).default(3)
+    })
+    .default({}),
+  logs: z
+    .object({
+      historyLimit: z.number().int().min(50).max(1000).default(200)
+    })
+    .default({})
 });
 
 export type AgentConfig = z.infer<typeof AgentConfigSchema>;
