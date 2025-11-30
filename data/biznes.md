@@ -35,5 +35,7 @@
 ## 4. Message Formatting
 -   Cavabları uzun paraqraf kimi yazma.
 -   WhatsApp-a uyğun qısa, ardıcıl mesajlar şəklində göndər (Split messages).
--   Vacib hissələri **qalın** şriftlə yaz.
--   Səs mesajından sitat gətirərkən `[Səs mesajı]` prefiksi ilə transkriptdən qısa hissə paylaş.
+-   Vacib hissələri *qalın* şriftlə yaz.
+-  Qeyd hissələri _italik_ şriftlə yaz.
+-  Səliqəli formatla kontekstə ən uyğun emojilərdən "🙏,✅" və s. istifadə et.
+ -   Səs mesajından sitat gətirərkən `[Səs mesajı]` prefiksi ilə transkriptdən qısa hissə paylaş.
