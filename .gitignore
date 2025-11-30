@@ -1,15 +1,45 @@
+# ------------------------------
+# Node / package managers
+# ------------------------------
 node_modules/
 backend/node_modules/
-backend/dist/
 dashboard/node_modules/
-dashboard/.next/
-.env
-.env.*.local
-.DS_Store
-*.log
+pnpm-debug.log*
+npm-debug.log*
+yarn-error.log*
 *.tmp
-/docker-compose.override.yml
-logs/
-data/waha/
+
+# ------------------------------
+# Build artefacts
+# ------------------------------
+backend/dist/
+dashboard/.next/
+dashboard/out/
+
+# ------------------------------
+# Environment & secrets
+# ------------------------------
+.env
+.env.*
+!.env.example
+data/admin-managed.env
 env/
+
+# ------------------------------
+# Runtime data & logs
+# ------------------------------
+logs/
+*.log
+data/waha/
+
+# ------------------------------
+# Docker / tooling overrides
+# ------------------------------
+/docker-compose.override.yml
 exporter.sh
+
+# ------------------------------
+# OS / editor artefacts
+# ------------------------------
+.DS_Store
+Thumbs.db
