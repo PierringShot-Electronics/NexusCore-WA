@@ -1,8 +1,24 @@
 import type { Request, Response } from 'express';
 import { Router } from 'express';
+import { z } from 'zod';
 import { getLogHistory, subscribeLogs } from '../utils/logStream';
 import { wahaClient } from '../services/agent/wahaClient';
 import { env } from '../config/env';
+import {
+  getAgentConfig,
+  getAgentConfigMetadata,
+  parseAgentConfigUpdate,
+  updateAgentConfig
+} from '../config/agentConfig';
+import {
+  getBusinessPromptInfo,
+  writeBusinessPrompt
+} from '../services/agent/promptLoader';
+import {
+  getEditableEnvEntries,
+  getEnvMetadata,
+  updateEditableEnv
+} from '../services/admin/envManager';
 
 export function createAdminRouter(): Router {
   const router = Router();
@@ -15,6 +31,29 @@ export function createAdminRouter(): Router {
       env: {
         appPort: env.APP_PORT,
         wahaSession: env.WAHA_SESSION
+      }
+    });
+  });
+
+  router.get('/config', async (_req, res) => {
+    const [prompt, envEntries, envMeta, agentMeta] = await Promise.all([
+      getBusinessPromptInfo(),
+      getEditableEnvEntries(),
+      getEnvMetadata(),
+      getAgentConfigMetadata()
+    ]);
+
+    res.json({
+      prompt,
+      env: {
+        entries: envEntries,
+        path: envMeta.path,
+        updatedAt: envMeta.updatedAt
+      },
+      agent: {
+        settings: getAgentConfig(),
+        path: agentMeta.path,
+        updatedAt: agentMeta.updatedAt
       }
     });
   });
@@ -91,6 +130,86 @@ export function createAdminRouter(): Router {
 
     // Future: persist chatId in a handover list to stop AI responses
     res.json({ status: 'accepted', chatId });
+  });
+
+  const PromptUpdateSchema = z.object({
+    content: z
+      .string()
+      .min(10, 'Prompt məzmunu ən azı 10 simvol olmalıdır.')
+  });
+
+  router.put('/config/prompt', async (req, res) => {
+    try {
+      const payload = PromptUpdateSchema.parse(req.body);
+      const result = await writeBusinessPrompt(payload.content);
+      res.json({
+        status: 'updated',
+        prompt: {
+          content: payload.content,
+          path: result.path,
+          updatedAt: result.updatedAt
+        }
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'invalid_prompt', details: error.errors });
+      }
+      res.status(500).json({ error: 'prompt_update_failed' });
+    }
+  });
+
+  const EnvUpdateSchema = z.object({
+    entries: z
+      .array(
+        z.object({
+          key: z.string().min(1),
+          value: z.string()
+        })
+      )
+      .min(1, 'Ən azı bir dəyişiklik göndərin.')
+  });
+
+  router.put('/config/env', async (req, res) => {
+    try {
+      const payload = EnvUpdateSchema.parse(req.body);
+      const entries = await updateEditableEnv(payload.entries);
+      const meta = await getEnvMetadata();
+
+      res.json({
+        status: 'updated',
+        env: {
+          entries,
+          path: meta.path,
+          updatedAt: meta.updatedAt
+        }
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'invalid_env_request', details: error.flatten() });
+      }
+      res.status(500).json({ error: 'env_update_failed', message: (error as Error).message });
+    }
+  });
+
+  router.put('/config/agent', async (req, res) => {
+    try {
+      const update = parseAgentConfigUpdate(req.body);
+      const updated = await updateAgentConfig(update);
+      const meta = await getAgentConfigMetadata();
+      res.json({
+        status: 'updated',
+        agent: {
+          settings: updated,
+          path: meta.path,
+          updatedAt: meta.updatedAt
+        }
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'invalid_agent_config', details: error.flatten() });
+      }
+      res.status(500).json({ error: 'agent_config_update_failed', message: (error as Error).message });
+    }
   });
 
   return router;

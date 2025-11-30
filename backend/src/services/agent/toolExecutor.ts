@@ -4,6 +4,7 @@ import { calculateOffer } from '../tools/pricing';
 import { analyzeImage } from '../tools/imageAnalysis';
 import type { BufferedMessagePayload } from '../buffer/smartBuffer';
 import type { VisionInsight } from '../tools/imageAnalysis';
+import { getAgentConfig } from '../../config/agentConfig';
 
 export interface ToolContext {
   userMessage: string;
@@ -36,13 +37,14 @@ export async function executeTools(
   const results: ToolSummary = {};
 
   if (decision.needsVision) {
+    const imageLimit = Math.max(1, getAgentConfig().vision.maxImagesToProcess);
     const imageMessages = context.buffered.filter(
       (msg): msg is BufferedMessagePayload & { imageUrl: string } =>
         msg.type === 'image' && typeof msg.imageUrl === 'string'
     );
 
     const insights: VisionSummaryEntry[] = [];
-    for (const [index, message] of imageMessages.slice(0, 3).entries()) {
+    for (const [index, message] of imageMessages.slice(0, imageLimit).entries()) {
       const insight = await analyzeImage(message.imageUrl);
       if (insight) {
         insights.push({ ...insight, imageUrl: message.imageUrl, index });

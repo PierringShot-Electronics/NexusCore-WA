@@ -1,4 +1,5 @@
 import { EventEmitter } from 'node:events';
+import { getAgentConfig, onAgentConfigChange } from '../config/agentConfig';
 
 export interface LogEntry {
   id: string;
@@ -9,14 +10,23 @@ export interface LogEntry {
 }
 
 const logEmitter = new EventEmitter();
-const MAX_HISTORY = 200;
 const history: LogEntry[] = [];
+let historyLimit = getAgentConfig().logs.historyLimit;
+
+function enforceHistoryLimit(): void {
+  while (history.length > historyLimit) {
+    history.shift();
+  }
+}
+
+onAgentConfigChange((config) => {
+  historyLimit = config.logs.historyLimit;
+  enforceHistoryLimit();
+});
 
 export function publishLog(entry: LogEntry): void {
   history.push(entry);
-  if (history.length > MAX_HISTORY) {
-    history.shift();
-  }
+  enforceHistoryLimit();
   logEmitter.emit('log', entry);
 }
 

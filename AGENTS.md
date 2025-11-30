@@ -40,3 +40,22 @@
 - MCP endpointini (`backend/src/mcp/server.ts`) yalnız daxili trafikin girişi üçün açın, ehtiyac olduqda əlavə autentifikasiya qatları tətbiq edin.
 - Səs/video fayllarını yalnız WAHA hostundan endir; üçüncü tərəf URL-lərini blokla.
 - Validate inbound payloads with Zod before processing; reject group messages unless explicitly whitelisted.
+
+## Agent Update Notes
+
+### Nə dəyişdi
+- Audio və vizual siqnallar üçün agent məntiqi yeniləndi: yeni niyyət heuristikası indi “məhsul”, “qiymət”, “təmir”, “termopasta” kimi açar sözləri avtomatik tanıyır və əl ilə şikayət və ya operator tələbi gəlmədikcə default olaraq handover vermir; bax: `backend/src/services/agent/agentService.ts:180-259`.
+- Şəkil aləti artıq ilk 3 fotonu JSON cavabla emal edir, OCR və zədə qeydlərini çıxarır, nəticələr `ToolSummary` daxilində çoxsaylı giriş kimi saxlanılır; bax: `backend/src/services/agent/toolExecutor.ts:20-55`, `backend/src/services/tools/imageAnalysis.ts:1-155`, `backend/src/services/agent/responseBuilder.ts:140-217`.
+- Persona seçimi və prompt orkestrasiyası yeni multimodal siqnalları nəzərə alır, cavablar məcburi şəkildə səs transkriptlərini və foto analizini inteqrasiya edir; bax: `backend/src/services/agent/personaStrategy.ts:32-137`, `backend/src/services/agent/responseBuilder.ts:140-215`.
+- Konfiqurasiya və sənədlər yeniləndi: default transkripsiya modeli indi `OpenAI whisper-large-v3-turbo`, OpenAI/Groq ardıcıllığının necə işlədiyi `README.md:9-87` və `docs/documentations.md:61-93` daxilində izah olunub; bax: `backend/src/config/env.ts:34-52`.
+
+### Testlər
+- `npm run build`
+- `python3 test_endpoints.py` çalışdırılmadı – backend konteyneri olmadan işləmir; docker stack yenidən başlatdıqdan sonra icra et.
+
+### Növbəti addım
+- Stack-i `bash scripts/start_clean.sh` ilə yenidən qaldır və real WhatsApp söhbətində həm audio, həm də foto göndərərək davranışı yoxla; nəticəni `docker logs -f nexuscore-wa-app-1` üzərindən izləmək tövsiyə olunur.
+
+### Qeydlər
+- Yeni commit: `feature/waha-mcp-integration` üzərində `e91c4fb Improve multimodal agent heuristics` (remote-a push olunub). `main` hazırda `2c31909` commitindədir; ehtiyac varsa bu dəyişiklikləri ora merge et.
+- Səsli mesajlarda Anadolu/Azərbaycan ləhcəsi üçün daha dəqiq transkript almaq istəyirsənsə `OPENAI_TRANSCRIPTION_MODEL` üçün `.env` daxilində `whisper-large-v3-turbo` saxla; Groq açarı varsa, sistem avtomatik fallback edəcək.

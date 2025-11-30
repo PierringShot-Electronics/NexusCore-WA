@@ -12,6 +12,7 @@ import type { PersonaDecision } from './personaStrategy';
 import { evaluateGuardrails } from './guardrails';
 import { processMediaMessages } from './mediaProcessor';
 import { extractTextFromBufferedMessage } from './textUtils';
+import { getAgentHeuristicMatchers } from '../../config/agentConfig';
 
 interface HandleBufferedMessagesOptions {
   chatExternalId: string;
@@ -24,6 +25,7 @@ export class AgentService {
     options: HandleBufferedMessagesOptions
   ): Promise<void> {
     const { chatExternalId, customerName, bufferedMessages } = options;
+    const heuristics = getAgentHeuristicMatchers();
 
     const chatId = await contextManager.ensureChat(
       chatExternalId,
@@ -65,8 +67,7 @@ export class AgentService {
 
     const primaryText = consolidated.text?.trim().toLowerCase() ?? '';
     if (primaryText) {
-      const greetingPatterns = [/^s[aə]lam!?$/i, /^h(e|ə)y!?$/i, /^nec[əe]s[əe]n\??$/i];
-      const isGreeting = greetingPatterns.some((regex) => regex.test(primaryText));
+      const isGreeting = matchPatterns(heuristics.greeting, primaryText);
 
       if (isGreeting) {
         const greetingReply = [
@@ -112,12 +113,9 @@ export class AgentService {
       'İstifadəçi yeni mesaj göndərdi.'
     ).trim();
 
-    const normalizedForGreeting = (latestMessage || fallbackSummary || '')
-      .trim()
-      .toLowerCase();
+    const normalizedForGreeting = (latestMessage || fallbackSummary || '').trim().toLowerCase();
     if (normalizedForGreeting) {
-      const greetingPatterns = [/^s[aə]lam!?$/, /^h(e|ə)y!?$/, /^nec[əe]s[əe]n\??$/];
-      const isGreeting = greetingPatterns.some((regex) => regex.test(normalizedForGreeting));
+      const isGreeting = matchPatterns(heuristics.greeting, normalizedForGreeting);
 
       if (isGreeting) {
         const greetingReply = [
@@ -178,7 +176,8 @@ export class AgentService {
     const intent = await classifyIntent(userMessage);
 
     const normalizedUserMessage = userMessage.toLowerCase();
-    const explicitHandoverRequest = /(insan|operator|menecer|human|real adam)/i.test(
+    const explicitHandoverRequest = matchPatterns(
+      heuristics.manualHandover,
       normalizedUserMessage
     );
 
@@ -186,23 +185,23 @@ export class AgentService {
       intent.handover = false;
     }
 
-    const productRegex = /(məhsul|varm[ıi]|stok|sat[ıi]l[ıi]r|əlində nə var|modellər)/i;
-    if (productRegex.test(normalizedUserMessage)) {
+    const productKeywordMatch = matchPatterns(heuristics.product, normalizedUserMessage);
+    if (productKeywordMatch) {
       intent.needsStock = true;
     }
 
-    const pricingRegex = /(neçəyə|qiymət|price|kaç)/i;
-    if (pricingRegex.test(normalizedUserMessage)) {
+    const pricingKeywordMatch = matchPatterns(heuristics.pricing, normalizedUserMessage);
+    if (pricingKeywordMatch) {
       intent.needsPricing = true;
     }
 
-    const competitorRegex = /(başqa yerdə|tap\.az|rəqib|ucuz)/i;
-    if (competitorRegex.test(normalizedUserMessage)) {
+    const competitorKeywordMatch = matchPatterns(heuristics.competitor, normalizedUserMessage);
+    if (competitorKeywordMatch) {
       intent.needsCompetitors = true;
     }
 
-    const repairRegex = /(təmir|servis|termopasta|fan|ekran|batareya|adapter|toz|qızır|soyutma)/i;
-    if (repairRegex.test(normalizedUserMessage)) {
+    const repairKeywordMatch = matchPatterns(heuristics.repair, normalizedUserMessage);
+    if (repairKeywordMatch) {
       // ensure we prioritise diagnostics persona and avoid unnecessary handover
       intent.needsVision = intent.needsVision || false;
     }
@@ -236,7 +235,7 @@ export class AgentService {
 
     if (bufferedMessages.some((msg) => msg.type === 'audio')) {
       // audio sorğuları adətən əlavə izah tələb edir, kontekstə transkript daxil ediləcək
-      intent.needsStock = intent.needsStock || productRegex.test(normalizedUserMessage);
+      intent.needsStock = intent.needsStock || productKeywordMatch;
     }
 
     const toolResults = await executeTools(intent, {
@@ -362,6 +361,10 @@ export class AgentService {
       }
     });
   }
+}
+
+function matchPatterns(patterns: RegExp[], input: string): boolean {
+  return patterns.some((pattern) => pattern.test(input));
 }
 
 export const agentService = new AgentService();

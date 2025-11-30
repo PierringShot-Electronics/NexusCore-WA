@@ -1,0 +1,18 @@
+{
+  "heuristics": {
+    "greetingPatterns": ["^s[aə]lam!?$", "^h(e|ə)y!?$", "^nec[əe]s[əe]n\\??$"],
+    "manualHandoverKeywords": ["insan", "operator", "menecer", "human", "real adam"],
+    "productPatterns": ["məhsul", "varm[ıi]", "stok", "sat[ıi]l[ıi]r", "əlində nə var", "modellər"],
+    "pricingPatterns": ["neçəyə", "qiymət", "price", "kaç"],
+    "competitorPatterns": ["başqa yerdə", "tap\\.az", "rəqib", "ucuz"],
+    "repairPatterns": ["təmir", "servis", "termopasta", "fan", "ekran", "batareya", "adapter", "toz", "qızır", "soyutma"],
+    "supportPatterns": ["şikayət", "naraz", "qaranti", "zəmanət", "yenə", "problem", "işləmir", "gəlməyib", "söndü", "yanır"],
+    "salesPatterns": ["qiymət", "neçə", "satılır", "varmı", "stok", "almaq", "sifariş"]
+  },
+  "vision": {
+    "maxImagesToProcess": 3
+  },
+  "logs": {
+    "historyLimit": 200
+  }
+}

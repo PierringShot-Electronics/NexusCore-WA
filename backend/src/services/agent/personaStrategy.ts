@@ -1,5 +1,6 @@
 import type { IntentClassification } from './aiRouter';
 import type { ToolSummary } from './toolExecutor';
+import { getAgentHeuristicMatchers } from '../../config/agentConfig';
 
 export type PersonaKey = 'general' | 'sales' | 'support' | 'diagnostics';
 
@@ -26,11 +27,9 @@ interface PersonaOptions {
   hasComplaintHistory: boolean;
 }
 
-const SUPPORT_KEYWORDS = /(şikayət|naraz|qaranti|zəmanət|yenə|problem|işləmir|gəlməyib|söndü|yanır)/i;
-const SALES_KEYWORDS = /(qiymət|neçə|satılır|varmı|stok|almaq|sifariş)/i;
-
 export function determinePersona(options: PersonaOptions): PersonaDecision {
   const { intent, userMessage, tools, hasAudio, hasVision, hasComplaintHistory } = options;
+  const heuristics = getAgentHeuristicMatchers();
   const normalizedMessage = userMessage.toLowerCase();
 
   if (hasVision || intent.needsVision || Boolean(tools.vision?.length)) {
@@ -44,7 +43,7 @@ export function determinePersona(options: PersonaOptions): PersonaDecision {
     intent.needsStock ||
     intent.needsPricing ||
     intent.needsCompetitors ||
-    SALES_KEYWORDS.test(normalizedMessage) ||
+    matchPatterns(heuristics.sales, normalizedMessage) ||
     Boolean(tools.stock?.matches?.length) ||
     Boolean(tools.pricing)
   ) {
@@ -57,7 +56,7 @@ export function determinePersona(options: PersonaOptions): PersonaDecision {
   if (
     hasComplaintHistory ||
     intent.handover ||
-    SUPPORT_KEYWORDS.test(normalizedMessage)
+    matchPatterns(heuristics.support, normalizedMessage)
   ) {
     return {
       profile: PERSONAS.support,
@@ -76,6 +75,10 @@ export function determinePersona(options: PersonaOptions): PersonaDecision {
     profile: PERSONAS.general,
     rationale: 'Ümumi sorğu üçün baza persona seçildi.'
   };
+}
+
+function matchPatterns(patterns: RegExp[], input: string): boolean {
+  return patterns.some((pattern) => pattern.test(input));
 }
 
 const PERSONAS: Record<PersonaKey, PersonaProfile> = {
