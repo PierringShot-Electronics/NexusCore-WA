@@ -27,6 +27,8 @@ const ENV_CANDIDATES = [
   path.join(process.cwd(), '..', 'backend', ENV_FILENAME)
 ];
 
+const FALLBACK_ENV_PATH = path.join(process.cwd(), 'data', 'admin-managed.env');
+
 const ENV_METADATA: EnvVariableMetadata[] = [
   {
     key: 'OPENAI_API_KEY',
@@ -136,23 +138,31 @@ type EnvLine =
 
 let envPath = resolveInitialEnvPath();
 
-function resolveInitialEnvPath(): string {
+function resolveInitialEnvPath(): string | null {
   for (const candidate of ENV_CANDIDATES) {
     if (existsSync(candidate)) {
       return candidate;
     }
   }
-  return ENV_CANDIDATES[0] ?? path.join(process.cwd(), ENV_FILENAME);
+  return null;
 }
 
-async function ensureEnvDir(): Promise<void> {
-  await mkdir(path.dirname(envPath), { recursive: true });
+async function ensureEnvDir(targetPath: string): Promise<void> {
+  await mkdir(path.dirname(targetPath), { recursive: true });
 }
 
 function readCurrentEnvFile(): string {
-  if (existsSync(envPath)) {
+  if (envPath && existsSync(envPath)) {
     return readFileSync(envPath, 'utf-8');
   }
+
+  if (existsSync(FALLBACK_ENV_PATH)) {
+    if (!envPath) {
+      envPath = FALLBACK_ENV_PATH;
+    }
+    return readFileSync(FALLBACK_ENV_PATH, 'utf-8');
+  }
+
   return '';
 }
 
@@ -192,7 +202,7 @@ function formatEnvAssignment(key: string, value: string): string {
 }
 
 export function getEnvFilePath(): string {
-  return envPath;
+  return envPath ?? FALLBACK_ENV_PATH;
 }
 
 export async function getEditableEnvEntries(): Promise<EnvVariableEntry[]> {
@@ -201,20 +211,21 @@ export async function getEditableEnvEntries(): Promise<EnvVariableEntry[]> {
 
   return ENV_METADATA.map((meta) => ({
     ...meta,
-    value: values[meta.key] ?? ''
+    value: values[meta.key] ?? process.env[meta.key] ?? ''
   }));
 }
 
 export async function getEnvMetadata(): Promise<{ path: string; updatedAt: string | null }> {
+  const target = envPath ?? FALLBACK_ENV_PATH;
   try {
-    const stats = await stat(envPath);
+    const stats = await stat(target);
     return {
-      path: envPath,
+      path: target,
       updatedAt: stats.mtime.toISOString()
     };
   } catch {
     return {
-      path: envPath,
+      path: target,
       updatedAt: null
     };
   }
@@ -254,7 +265,11 @@ export async function updateEditableEnv(entries: UpdatePayload[]): Promise<EnvVa
     });
   }
 
-  await ensureEnvDir();
+  if (!envPath) {
+    envPath = FALLBACK_ENV_PATH;
+  }
+
+  await ensureEnvDir(envPath);
   const serialized = updatedLines.map((line) => line.raw).join('\n');
   await writeFile(envPath, `${serialized.trimEnd()}\n`, 'utf-8');
 
