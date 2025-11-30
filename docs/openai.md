@@ -206,9 +206,6 @@ görüldüyü kimi JSON obyektlərini tələb edir (məsələn,
 - **Quota limitləri**: OpenAI hesabınızda billing bölməsində əlavə kredit
   tələb oluna bilər.
 
-Bu cookbook sənədi layihədə tez-tez istifadə olunan nümunələri tək
-yerdə saxlayır; əlavə ssenari olduqda bura əlavə et.
-
 ## 7. API Reference Snapshot
 
 OpenAI-nin tam [API Reference](https://platform.openai.com/docs/api-reference/)
@@ -236,3 +233,33 @@ Digər faydalı bəndlər:
 - **Function / Tool calling** – `/docs/guides/function-calling`,
   `/docs/guides/tools` – WAHA agentinə əlavə backend funksiyaları bağlamaq
   üçün istifadə oluna bilər.
+
+## 8. Model siyahısını yoxlamaq
+
+Yeni model identifikatorlarının aktiv olduğunu təsdiqləmək üçün:
+
+```bash
+curl https://api.openai.com/v1/models \
+  -H "Authorization: Bearer $OPENAI_API_KEY"
+```
+
+Nəticədə `object=list` cavabı gəlir və `data[].id` massivində bütün
+mövcud modellər (məsələn `gpt-4o-mini`, `whisper-large-v3-turbo`,
+`text-embedding-3-small`, `gpt-5` ailəsi və s.) çıxır. Backend `.env`
+parametrlərində istifadə etdiyimiz identifikatorların bu siyahıda
+olduğunu yoxla.
+
+Praktikada uzun siyahını filtr etmək üçün `jq` və `grep` köməyindən
+istifadə et:
+
+```bash
+curl -s https://api.openai.com/v1/models \
+  -H "Authorization: Bearer $OPENAI_API_KEY" \
+  | jq -r '.data[].id' | grep gpt-4o
+```
+
+Siyahıda gözlənilən model yoxdursa, həmin akkountda təklif olunmur və ya
+abonementə daxil deyil.
+
+Bu cookbook sənədi layihədə tez-tez istifadə olunan nümunələri tək yerdə
+saxlayır; əlavə ssenarilər çıxdıqca bölmələr əlavə et.
