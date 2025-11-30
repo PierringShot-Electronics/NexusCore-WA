@@ -32,14 +32,13 @@ göstərilən cURL nümunələri ilə xam sorğuları sınaqdan keçirmək mümk
 
 ### 1.2. `.env` konfiqurasiyası (backend)
 
-`backend/.env.example` faylını əsas götürüb aşağıdakı açarları
-qəpiklə:
+`backend/.env.example` faylını əsas götürüb aşağıdakı açarları qəpiklə:
 
 ```
 OPENAI_API_KEY=sk-...
-OPENAI_MODEL=gpt-4o-mini
-OPENAI_VISION_MODEL=gpt-4o-mini
-OPENAI_TRANSCRIPTION_MODEL=whisper-large-v3-turbo
+OPENAI_MODEL=gpt-4.1
+OPENAI_VISION_MODEL=gpt-4o
+OPENAI_TRANSCRIPTION_MODEL=gpt-4o-mini-transcribe
 OPENAI_EMBEDDING_MODEL=text-embedding-3-small
 ```
 
@@ -61,7 +60,7 @@ const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function askModel(prompt: string) {
   const response = await client.responses.create({
-    model: process.env.OPENAI_MODEL ?? 'gpt-4o-mini',
+    model: process.env.OPENAI_MODEL ?? 'gpt-4.1',
     input: prompt
   });
 
@@ -81,7 +80,7 @@ from openai import OpenAI
 client = OpenAI()
 
 resp = client.responses.create(
-    model="gpt-4o-mini",
+    model="gpt-4.1",
     input="Write a one-sentence bedtime story about a unicorn."
 )
 
@@ -97,7 +96,7 @@ curl https://api.openai.com/v1/responses \
   -H "Authorization: Bearer $OPENAI_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "gpt-4o-mini",
+    "model": "gpt-4.1",
     "input": "Summarize the NexusCore-WA architecture in 3 bullet points."
   }'
 ```
@@ -108,7 +107,7 @@ Backend-də `analyzeImage` funksiyası aşağıdakı strukturu gözləyir:
 
 ```ts
 const response = await client.responses.create({
-  model: process.env.OPENAI_VISION_MODEL ?? 'gpt-4o-mini',
+  model: process.env.OPENAI_VISION_MODEL ?? 'gpt-4o',
   input: [
     {
       role: 'user',
@@ -128,7 +127,7 @@ curl https://api.openai.com/v1/responses \
   -H "Authorization: Bearer $OPENAI_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "gpt-4o-mini",
+    "model": "gpt-4o",
     "input": [{
       "role": "user",
       "content": [
@@ -148,7 +147,7 @@ ilə emal edir. Lokal test üçün:
 curl https://api.openai.com/v1/audio/transcriptions \
   -H "Authorization: Bearer $OPENAI_API_KEY" \
   -H "Content-Type: multipart/form-data" \
-  -F model=whisper-large-v3-turbo \
+  -F model=gpt-4o-mini-transcribe \
   -F file=@voice-note.ogg
 ```
 
@@ -158,7 +157,7 @@ Node nümunəsi:
 const file = await toFile(buffer, 'note.ogg', { type: 'audio/ogg' });
 const transcript = await client.audio.transcriptions.create({
   file,
-  model: process.env.OPENAI_TRANSCRIPTION_MODEL ?? 'whisper-large-v3-turbo',
+  model: process.env.OPENAI_TRANSCRIPTION_MODEL ?? 'gpt-4o-mini-transcribe',
   response_format: 'verbose_json'
 });
 ```
@@ -178,10 +177,26 @@ const vector = emb.data[0].embedding; // pgvector <-> istifadə olunur
 
 | Açar | Təsvir | Default |
 | ---- | ------ | ------- |
-| `OPENAI_MODEL` | Mətn cavab modeli | `gpt-4o-mini` |
-| `OPENAI_VISION_MODEL` | Şəkil analiz modeli | `gpt-4o-mini` |
-| `OPENAI_TRANSCRIPTION_MODEL` | Audio transkripsiyası | `whisper-large-v3-turbo` |
+| `OPENAI_MODEL` | Mətn cavab modeli | `gpt-4.1` |
+| `OPENAI_VISION_MODEL` | Şəkil analiz modeli | `gpt-4o` |
+| `OPENAI_TRANSCRIPTION_MODEL` | Audio transkripsiyası | `gpt-4o-mini-transcribe` |
 | `OPENAI_EMBEDDING_MODEL` | Vektor embedding | `text-embedding-3-small` |
+| `OPENAI_TTS_MODEL` | Mətn → səs modeli | `gpt-4o-mini-tts` |
+| `OPENAI_TTS_VOICE` | Default səs adı | `alloy` |
+| `AGENT_MODEL_GENERAL` | Ümumi dialoq | `gpt-4.1` |
+| `AGENT_MODEL_SALES` | Satış/suallar | `gpt-4o-mini` |
+| `AGENT_MODEL_SUPPORT` | Şikayət/dəstək | `gpt-4.1-mini` |
+| `AGENT_MODEL_DIAGNOSTICS` | Multimodal diaqnostika | `gpt-4o` |
+
+**Model seçimlərinin əsaslandırılması**
+
+- **gpt-4.1** – OpenAI-nin ən güclü ümumi məqsədli modeli olaraq dərin məntiq və agent iş axınlarını dəstəkləyir, `general` persona üçün təyin olunub.citeturn1openai0
+- **gpt-4o-mini** – sürətli və qənaətcil cavablar verir, satış scenarilərində dizayn edilən çevik dialoq üçün uyğundur.citeturn1openai0
+- **gpt-4.1-mini** – dəstək scenarilərində empatik amma resurs baxımından balanslı davranışı təmin edir.citeturn1openai0
+- **gpt-4o** – yüksək keyfiyyətli multimodal (foto/video) anlayış təqdim edir, diaqnostika personasında seçilib.citeturn1openai1
+- **gpt-4o-mini-transcribe** – Whisper ailəsindən daha sürətli və əlçatan transkripsiya təmin edir; Groq Whisper eyni adlı model fallback kimi saxlanılır.citeturn1openai2
+- **gpt-4o-mini-tts** + `alloy` – real-time səs çıxışları üçün tövsiyə olunan TTS model/səs cütlüyüdür.citeturn1openai0
+- **text-embedding-3-small** – Məhsul axtarışı üçün balanslı seçimdir; daha dəqiq nəticə üçün `text-embedding-3-large` aktiv edilə bilər.citeturn1openai3
 
 Agent UI-də (`data/agent-config.json`) heuristikaları müxtəlif regex
 listləri ilə dəyişmək mümkündür; backend defaultları schema-da
@@ -215,7 +230,7 @@ detalları saxlayır. Bizim üçün ən kritik bölmələr:
 | Endpoint | İstifadə ssenarisi | Qısa qeydlər |
 | --- | --- | --- |
 | `/v1/responses` | Mətn və multimodal cavablar | `model`, `input`, `tools`, `stream` kimi sahələr; bütün nümunələrimiz bu endpoint üzərindədir. |
-| `/v1/audio/transcriptions` | PTT / audio yazılarının transkripti | `model=whisper-large-v3-turbo`, `response_format=verbose_json`. |
+| `/v1/audio/transcriptions` | PTT / audio yazılarının transkripti | `model=gpt-4o-mini-transcribe`, `response_format=verbose_json`. |
 | `/v1/embeddings` | Məhsul axtarışı üçün vektorlar | `model=text-embedding-3-small`, nəticə vektoru `pgvector` üçün istifadə olunur. |
 | `/v1/files` | Sənəd yükləmə və file_search | `purpose=user_data` ilə yüklə, ID-ni sonrakı sorğularda istifadə et. |
 
@@ -244,7 +259,7 @@ curl https://api.openai.com/v1/models \
 ```
 
 Nəticədə `object=list` cavabı gəlir və `data[].id` massivində bütün
-mövcud modellər (məsələn `gpt-4o-mini`, `whisper-large-v3-turbo`,
+mövcud modellər (məsələn `gpt-4.1`, `gpt-4o`, `gpt-4o-mini-transcribe`,
 `text-embedding-3-small`, `gpt-5` ailəsi və s.) çıxır. Backend `.env`
 parametrlərində istifadə etdiyimiz identifikatorların bu siyahıda
 olduğunu yoxla.

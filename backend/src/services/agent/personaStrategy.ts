@@ -1,3 +1,4 @@
+import { env } from '../../config/env';
 import type { IntentClassification } from './aiRouter';
 import type { ToolSummary } from './toolExecutor';
 import { getAgentHeuristicMatchers } from '../../config/agentConfig';
@@ -93,7 +94,7 @@ const PERSONAS: Record<PersonaKey, PersonaProfile> = {
       'Əgər məlumat çatışmırsa, konkret və bir-birini tamamlayan suallar ver.',
       'Gərək olduqda alət nəticələrindən sitat gətir, lakin həddən artıq detallı texniki çıxış etmə.'
     ],
-    preferredModel: undefined,
+    preferredModel: env.AGENT_MODEL_GENERAL,
     temperature: 0.4
   },
   sales: {
@@ -107,7 +108,7 @@ const PERSONAS: Record<PersonaKey, PersonaProfile> = {
       'Qiymət təklifini aydın yaz, çatdırılma və zəmanət kimi əlavə dəyərləri qeyd et.',
       'Sonda müştərini növbəti addıma yönləndir (məsələn, cihazı gətirmək, öncədən sifariş vermək).'
     ],
-    preferredModel: undefined,
+    preferredModel: env.AGENT_MODEL_SALES,
     temperature: 0.35
   },
   support: {
@@ -121,7 +122,7 @@ const PERSONAS: Record<PersonaKey, PersonaProfile> = {
       'Şikayəti qeydə aldığını bildir və mümkün SLA/vaxt məlumatını paylaş.',
       'Səs mesajı və ya foto varsa, oradakı müşahidələri cavabda xatırlat.'
     ],
-    preferredModel: undefined,
+    preferredModel: env.AGENT_MODEL_SUPPORT,
     temperature: 0.3
   },
   diagnostics: {
@@ -135,7 +136,7 @@ const PERSONAS: Record<PersonaKey, PersonaProfile> = {
       'Əgər dəqiq diaqnoz mümkün deyilsə, ehtimal olunan 1-2 səbəbi və növbəti diaqnostika addımlarını paylaş.',
       'Təhlükəsizlik riski varsa (məsələn, elektrik qoxusu, şişmiş batareya), dərhal cihazı istifadə etməməyi tövsiyə et və servisdə yoxlanışı vurğula.'
     ],
-    preferredModel: undefined,
+    preferredModel: env.AGENT_MODEL_DIAGNOSTICS,
     temperature: 0.25
   }
 };

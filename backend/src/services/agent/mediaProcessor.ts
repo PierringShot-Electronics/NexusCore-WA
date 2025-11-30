@@ -154,6 +154,7 @@ async function transcribeAudioAttachment(
           : result.segments?.map((segment) => segment.text).join(' ');
 
       if (text) {
+        logger.debug('Audio transcribed via OpenAI model.');
         return text.trim();
       }
     } catch (error) {
@@ -172,6 +173,7 @@ async function transcribeAudioAttachment(
       })) as { text?: string };
 
       if (result?.text) {
+        logger.debug('Audio transcribed via Groq fallback model.');
         return result.text.trim();
       }
     } catch (error) {

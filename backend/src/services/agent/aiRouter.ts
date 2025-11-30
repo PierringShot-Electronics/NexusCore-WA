@@ -31,44 +31,63 @@ Mətn verilir. JSON formatında cavab ver:
 }
 Mətn: """${message}"""`.trim();
 
+  const providers: Array<() => Promise<string | null>> = [];
+
   if (hasOpenAI && openaiClient) {
-    try {
-      const completion = await openaiClient.responses.create({
-        model: env.OPENAI_MODEL,
-        input: [
-          {
-            role: 'system',
-            content: 'Yalnız JSON obyektini qaytar.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0
-      });
-      const text = completion.output_text ?? '{}';
-      return parseIntent(text);
-    } catch (error) {
-      logger.warn({ err: error }, 'OpenAI fallback intent classification failed');
-    }
+    const client = openaiClient;
+    providers.push(async () => {
+      try {
+        const completion = await client.responses.create({
+          model: env.OPENAI_MODEL,
+          input: [
+            {
+              role: 'system',
+              content: 'Yalnız JSON obyektini qaytar.'
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          temperature: 0
+        });
+        const text = completion.output_text ?? '{}';
+        logger.debug('Intent classified via OpenAI model.');
+        return text;
+      } catch (error) {
+        logger.warn({ err: error }, 'OpenAI intent classification failed, trying fallback provider.');
+        return null;
+      }
+    });
   }
 
   if (hasGroq && groqClient) {
-    try {
-      const completion = await groqClient.chat.completions.create({
-        model: env.GROQ_ROUTER_MODEL,
-        messages: [
-          { role: 'system', content: 'JSON formatında cavab ver. Başqa heç nə yazma.' },
-          { role: 'user', content: prompt }
-        ],
-        temperature: 0
-      });
+    const client = groqClient;
+    providers.push(async () => {
+      try {
+        const completion = await client.chat.completions.create({
+          model: env.GROQ_ROUTER_MODEL,
+          messages: [
+            { role: 'system', content: 'JSON formatında cavab ver. Başqa heç nə yazma.' },
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0
+        });
 
-      const content = completion.choices[0]?.message?.content ?? '{}';
-      return parseIntent(content);
-    } catch (error) {
-      logger.warn({ err: error }, 'Groq intent classification failed');
+        const content = completion.choices[0]?.message?.content ?? '{}';
+        logger.debug('Intent classified via Groq router model.');
+        return content;
+      } catch (error) {
+        logger.warn({ err: error }, 'Groq intent classification failed.');
+        return null;
+      }
+    });
+  }
+
+  for (const provider of providers) {
+    const result = await provider();
+    if (result) {
+      return parseIntent(result);
     }
   }
 

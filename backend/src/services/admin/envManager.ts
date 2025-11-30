@@ -39,22 +39,32 @@ const ENV_METADATA: EnvVariableMetadata[] = [
   {
     key: 'OPENAI_MODEL',
     label: 'OpenAI Default Model',
-    description: 'Primary text generation model (e.g. gpt-4o-mini).'
+    description: 'Primary text generation model (default gpt-4.1).'
   },
   {
     key: 'OPENAI_VISION_MODEL',
     label: 'OpenAI Vision Model',
-    description: 'Used for multimodal reasoning when images are involved.'
+    description: 'Used for multimodal reasoning when images or video are involved (default gpt-4o).'
   },
   {
     key: 'OPENAI_TRANSCRIPTION_MODEL',
     label: 'OpenAI Transcription Model',
-    description: 'Audio-to-text transcription engine (e.g. whisper-large-v3-turbo).'
+    description: 'Audio-to-text transcription engine (default gpt-4o-mini-transcribe).'
   },
   {
     key: 'OPENAI_EMBEDDING_MODEL',
     label: 'OpenAI Embedding Model',
     description: 'Vector embedding model for product similarity search.'
+  },
+  {
+    key: 'OPENAI_TTS_MODEL',
+    label: 'OpenAI TTS Model',
+    description: 'Text-to-speech model identifier (məs: gpt-4o-mini-tts).'
+  },
+  {
+    key: 'OPENAI_TTS_VOICE',
+    label: 'OpenAI TTS Voice',
+    description: 'Seçilmiş səs (məs: alloy).'
   },
   {
     key: 'GROQ_API_KEY',
@@ -81,6 +91,26 @@ const ENV_METADATA: EnvVariableMetadata[] = [
     key: 'GROQ_TRANSCRIPTION_MODEL',
     label: 'Groq Transcription Model',
     description: 'Alternative transcription model (defaults to Whisper).'
+  },
+  {
+    key: 'AGENT_MODEL_GENERAL',
+    label: 'Agent Model – General',
+    description: 'Əsas dialoq üçün baza modeli (default gpt-4.1).'
+  },
+  {
+    key: 'AGENT_MODEL_SALES',
+    label: 'Agent Model – Sales',
+    description: 'Satış/persona cavabları üçün model (default gpt-4o-mini).'
+  },
+  {
+    key: 'AGENT_MODEL_SUPPORT',
+    label: 'Agent Model – Support',
+    description: 'Şikayət/ dəstək cavabları üçün model (default gpt-4.1-mini).'
+  },
+  {
+    key: 'AGENT_MODEL_DIAGNOSTICS',
+    label: 'Agent Model – Diagnostics',
+    description: 'Multimodal texniki diaqnostika üçün model (default gpt-4o).'
   },
   {
     key: 'WAHA_BASE_URL',
