@@ -36,10 +36,11 @@ göstərilən cURL nümunələri ilə xam sorğuları sınaqdan keçirmək mümk
 
 ```
 OPENAI_API_KEY=sk-...
-OPENAI_MODEL=gpt-4.1
+OPENAI_MODEL=gpt-5.1
 OPENAI_VISION_MODEL=gpt-4o
 OPENAI_TRANSCRIPTION_MODEL=gpt-4o-mini-transcribe
 OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+OPENAI_ROUTER_MODEL=gpt-5-nano
 ```
 
 > Dashboard → Env Konfiqurasiya bölməsi bu dəyişənləri UI üzərindən
@@ -60,7 +61,7 @@ const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function askModel(prompt: string) {
   const response = await client.responses.create({
-    model: process.env.OPENAI_MODEL ?? 'gpt-4.1',
+    model: process.env.OPENAI_MODEL ?? 'gpt-5.1',
     input: prompt
   });
 
@@ -80,7 +81,7 @@ from openai import OpenAI
 client = OpenAI()
 
 resp = client.responses.create(
-    model="gpt-4.1",
+    model="gpt-5.1",
     input="Write a one-sentence bedtime story about a unicorn."
 )
 
@@ -96,7 +97,7 @@ curl https://api.openai.com/v1/responses \
   -H "Authorization: Bearer $OPENAI_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "gpt-4.1",
+    "model": "gpt-5.1",
     "input": "Summarize the NexusCore-WA architecture in 3 bullet points."
   }'
 ```
@@ -177,23 +178,25 @@ const vector = emb.data[0].embedding; // pgvector <-> istifadə olunur
 
 | Açar | Təsvir | Default |
 | ---- | ------ | ------- |
-| `OPENAI_MODEL` | Mətn cavab modeli | `gpt-4.1` |
+| `OPENAI_MODEL` | Mətn/agent cavab modeli | `gpt-5.1` |
 | `OPENAI_VISION_MODEL` | Şəkil analiz modeli | `gpt-4o` |
 | `OPENAI_TRANSCRIPTION_MODEL` | Audio transkripsiyası | `gpt-4o-mini-transcribe` |
 | `OPENAI_EMBEDDING_MODEL` | Vektor embedding | `text-embedding-3-small` |
+| `OPENAI_ROUTER_MODEL` | Niyyət təsnifatı modeli | `gpt-5-nano` |
 | `OPENAI_TTS_MODEL` | Mətn → səs modeli | `gpt-4o-mini-tts` |
 | `OPENAI_TTS_VOICE` | Default səs adı | `alloy` |
-| `AGENT_MODEL_GENERAL` | Ümumi dialoq | `gpt-4.1` |
-| `AGENT_MODEL_SALES` | Satış/suallar | `gpt-4o-mini` |
+| `AGENT_MODEL_GENERAL` | Ümumi dialoq | `gpt-5.1` |
+| `AGENT_MODEL_SALES` | Satış/suallar | `gpt-5-mini` |
 | `AGENT_MODEL_SUPPORT` | Şikayət/dəstək | `gpt-4.1-mini` |
 | `AGENT_MODEL_DIAGNOSTICS` | Multimodal diaqnostika | `gpt-4o` |
 
 **Model seçimlərinin əsaslandırılması**
 
-- **gpt-4.1** – OpenAI-nin ən güclü ümumi məqsədli modeli olaraq dərin məntiq və agent iş axınlarını dəstəkləyir, `general` persona üçün təyin olunub.citeturn1openai0
-- **gpt-4o-mini** – sürətli və qənaətcil cavablar verir, satış scenarilərində dizayn edilən çevik dialoq üçün uyğundur.citeturn1openai0
+- **gpt-5.1** – OpenAI-nin ən yeni agentik modeli, yüksək kontekst və alət çağırışlarını dəstəkləyir; `general` persona üçün seçilib.citeturn0search2turn2search1
+- **gpt-5-mini** – sürətli və qənaətcil cavablar verir, satış və niyyət yönləndirmə scenarilərində çevik dialoq təmin edir.citeturn0search0turn0search3
 - **gpt-4.1-mini** – dəstək scenarilərində empatik amma resurs baxımından balanslı davranışı təmin edir.citeturn1openai0
-- **gpt-4o** – yüksək keyfiyyətli multimodal (foto/video) anlayış təqdim edir, diaqnostika personasında seçilib.citeturn1openai1
+- **gpt-4o** – yüksək keyfiyyətli multimodal (foto/video) anlayış təqdim edir, diaqnostika personasında seçilib.citeturn3search5
+- **gpt-5-nano** – ultra aşağı gecikməli router modeli kimi niyyət təsnifatı və trigger aşkarlanmasını sürətləndirir.citeturn0search1turn0search4
 - **gpt-4o-mini-transcribe** – Whisper ailəsindən daha sürətli və əlçatan transkripsiya təmin edir; Groq Whisper eyni adlı model fallback kimi saxlanılır.citeturn1openai2
 - **gpt-4o-mini-tts** + `alloy` – real-time səs çıxışları üçün tövsiyə olunan TTS model/səs cütlüyüdür.citeturn1openai0
 - **text-embedding-3-small** – Məhsul axtarışı üçün balanslı seçimdir; daha dəqiq nəticə üçün `text-embedding-3-large` aktiv edilə bilər.citeturn1openai3
@@ -210,6 +213,7 @@ görüldüyü kimi JSON obyektlərini tələb edir (məsələn,
 - Streaming: <https://platform.openai.com/docs/guides/streaming-responses>
 - Vision Guide: <https://platform.openai.com/docs/guides/images>
 - Whisper Transcription: <https://platform.openai.com/docs/guides/speech-to-text>
+- Model constellations və router memarlığı: `docs/openai_models.md`
 
 ## 6. Troubleşuting
 

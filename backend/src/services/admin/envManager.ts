@@ -39,7 +39,7 @@ const ENV_METADATA: EnvVariableMetadata[] = [
   {
     key: 'OPENAI_MODEL',
     label: 'OpenAI Default Model',
-    description: 'Primary text generation model (default gpt-4.1).'
+    description: 'Primary text/agent model (default gpt-5.1).'
   },
   {
     key: 'OPENAI_VISION_MODEL',
@@ -55,6 +55,11 @@ const ENV_METADATA: EnvVariableMetadata[] = [
     key: 'OPENAI_EMBEDDING_MODEL',
     label: 'OpenAI Embedding Model',
     description: 'Vector embedding model for product similarity search.'
+  },
+  {
+    key: 'OPENAI_ROUTER_MODEL',
+    label: 'OpenAI Router Model',
+    description: 'Lightweight model for intent routing (default gpt-5-nano).'
   },
   {
     key: 'OPENAI_TTS_MODEL',
@@ -95,12 +100,12 @@ const ENV_METADATA: EnvVariableMetadata[] = [
   {
     key: 'AGENT_MODEL_GENERAL',
     label: 'Agent Model – General',
-    description: 'Əsas dialoq üçün baza modeli (default gpt-4.1).'
+    description: 'Ümumi dialoq üçün baza modeli (default gpt-5.1).'
   },
   {
     key: 'AGENT_MODEL_SALES',
     label: 'Agent Model – Sales',
-    description: 'Satış/persona cavabları üçün model (default gpt-4o-mini).'
+    description: 'Satış/persona cavabları üçün model (default gpt-5-mini).'
   },
   {
     key: 'AGENT_MODEL_SUPPORT',

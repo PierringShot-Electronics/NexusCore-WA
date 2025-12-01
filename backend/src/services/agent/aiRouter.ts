@@ -32,13 +32,14 @@ Mətn verilir. JSON formatında cavab ver:
 Mətn: """${message}"""`.trim();
 
   const providers: Array<() => Promise<string | null>> = [];
+  const openAiRouterModel = env.OPENAI_ROUTER_MODEL || env.OPENAI_MODEL;
 
   if (hasOpenAI && openaiClient) {
     const client = openaiClient;
     providers.push(async () => {
       try {
         const completion = await client.responses.create({
-          model: env.OPENAI_MODEL,
+          model: openAiRouterModel,
           input: [
             {
               role: 'system',

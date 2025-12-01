@@ -13,7 +13,7 @@
 - `npm run dev` (inside `dashboard/`): Launch Next.js dashboard on port 3002.
 - `npm run seed` (inside `backend/`): Load `data/products.csv` and generate embeddings.
 - `bash scripts/smoke_test.sh`: Curl health checks for backend, WAHA, and Postgres.
-- `python test_endpoints.py`: Lightweight verification of `/healthz` and WAHA `/health`.
+- `python scripts/test_endpoints.py`: Comprehensive checks of `/healthz`, WAHA `/health`, and message/media endpoints.
 - `bash scripts/waha_session.sh`: WAHA sessiyasını yarat və başlat, QR kodu çıxar.
 - `bash scripts/postgres_refresh_collation.sh`: Postgres collation versiyasını yenilə (glibc mismatch xəbərdarlıqlarını aradan qaldırır).
 - `npm run mcp:dev` (inside `backend/`): MCP serverini (`/mcp`) lokalda işə salır, WAHA ↔ OpenAI alətlərini təqdim edir.
@@ -27,7 +27,7 @@
 ## Testing Guidelines
 - Backend tests should live in `src/**/*.test.ts`; use Jest (add setup when suites are introduced) and mock external APIs.
 - Dashboard tests belong in `__tests__/` with Playwright or React Testing Library.
-- Smoke checks must pass (`scripts/smoke_test.sh`, `test_endpoints.py`) before publishing changes.
+- Smoke checks must pass (`scripts/smoke_test.sh`, `scripts/test_endpoints.py`) before publishing changes.
 
 ## Commit & Pull Request Guidelines
 - Commit messages: imperative mood, max 72 chars (e.g., `Add Redis smart buffer service`).
@@ -51,7 +51,7 @@
 
 ### Testlər
 - `npm run build`
-- `python3 test_endpoints.py` çalışdırılmadı – backend konteyneri olmadan işləmir; docker stack yenidən başlatdıqdan sonra icra et.
+- `python3 scripts/test_endpoints.py` çalışdırılmadı – backend konteyneri olmadan işləmir; docker stack yenidən başlatdıqdan sonra icra et.
 
 ### Növbəti addım
 - Stack-i `bash scripts/start_clean.sh` ilə yenidən qaldır və real WhatsApp söhbətində həm audio, həm də foto göndərərək davranışı yoxla; nəticəni `docker logs -f nexuscore-wa-app-1` üzərindən izləmək tövsiyə olunur.

@@ -1,4 +1,4 @@
-# ------------------------------
+	# ------------------------------
 # Node / package managers
 # ------------------------------
 node_modules/
@@ -33,6 +33,7 @@ logs/
 logs/*.png
 logs/*.json
 data/waha/
+agent_runs/
 
 # ------------------------------
 # Docker / tooling overrides
@@ -45,3 +46,4 @@ exporter.sh
 # ------------------------------
 .DS_Store
 Thumbs.db
+agent_run/

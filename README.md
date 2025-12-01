@@ -69,7 +69,7 @@ docker-compose.yml
 5. **Smoke Testləri**  
    ```bash
    bash scripts/smoke_test.sh
-   python test_endpoints.py
+   python scripts/test_endpoints.py
    ```
    WAHA bağlantısı, backend sağlamlığı və Postgres əlaqəsini yoxlayır.
    Collation mismatch xəbərdarlıqları görsəniz `bash scripts/postgres_refresh_collation.sh` icra edin.
