@@ -3,6 +3,7 @@ import express, { type Express } from 'express';
 import helmet from 'helmet';
 import { createWebhookRouter } from './routes/webhook';
 import { createAdminRouter } from './routes/admin';
+import { createTelemetryRouter } from './routes/telemetry';
 import type { SmartBuffer } from './services/buffer/smartBuffer';
 
 export function createApp(buffer: SmartBuffer): Express {
@@ -19,6 +20,7 @@ export function createApp(buffer: SmartBuffer): Express {
 
   app.use('/webhook', createWebhookRouter(buffer));
   app.use('/admin', createAdminRouter());
+  app.use('/telemetry', createTelemetryRouter());
 
   return app;
 }
