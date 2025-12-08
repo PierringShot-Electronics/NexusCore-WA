@@ -1,0 +1,33 @@
+{
+  "intents": [
+    {
+      "id": "greeting",
+      "label": "Salamlaşma",
+      "examples": ["salam", "hey", "salam qaqa"],
+      "confidence": 0.4
+    },
+    {
+      "id": "price_quote",
+      "label": "Qiymət sorğusu",
+      "examples": ["neçədir", "qiymət", "how much"],
+      "confidence": 0.5
+    },
+    {
+      "id": "technical_issue",
+      "label": "Texniki problem",
+      "examples": ["işləmir", "sönür", "laptop not turning on"],
+      "confidence": 0.55
+    },
+    {
+      "id": "appointment",
+      "label": "Qəbul / görüş",
+      "examples": ["görüş təyin et", "ustaya yazılmaq istəyirəm"],
+      "confidence": 0.5
+    }
+  ],
+  "fallback": {
+    "default_intent": "customer_support",
+    "clarify_threshold": 0.35,
+    "clarify_template": "Dəqiq yardım üçün təsdiqləyin: {options} mövzusunda soruşursunuz, yoxsa başqa mövzu var?"
+  }
+}

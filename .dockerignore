@@ -1,4 +1,5 @@
 data/waha/sessions
+data/whatsapp-gateway/session
 logs
 postgres
 env

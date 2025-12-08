@@ -4,7 +4,7 @@ _Updated: 01 December 2025_
 
 Bu sənəd NexusCore-WA ekosistemində istifadə olunan (və ya inteqrasiya üçün planlaşdırılan) OpenAI modellərinin yüksək səviyyəli xəritəsini təqdim edir. Məqsəd – router memarlığı ilə müxtəlif tapşırıqlar üçün ən uyğun modeli seçmək, xərci optimallaşdırmaq və multimodal davranışı qorumaqdır. Rəsmi model məlumatları OpenAI-nin model bələdçisi və qiymət cədvəli ilə uzlaşdırılıb.citeturn0search2turn2search2
 
-> **Qeyd:** Aşağıdakı cədvəllərdə `gpt-5.*` ailəsi yalnız həmin modellərə çıxışı aktivləşdirilmiş hesablar üçün əlçatandır. Prod mühitə tətbiq etməzdən əvvəl `curl https://api.openai.com/v1/models` sorğusu ilə tenant səviyyəsində mövcudluğu təsdiqləyin.
+> **Qeyd:** Standart konfiqurasiya `gpt-4o` / `gpt-4o-mini` ailəsinə söykənir. `gpt-5.*` modelləri yalnız həmin tenant üçün açıqdırsa istifadə oluna bilər; əvvəlcədən `curl https://api.openai.com/v1/models` ilə mövcudluğu təsdiqləyin.
 
 ## 1. GPT-5 Seriyası
 
@@ -26,7 +26,7 @@ Bu sənəd NexusCore-WA ekosistemində istifadə olunan (və ya inteqrasiya üç
 | `gpt-4.1-mini` | Qənaətcil, uzun kontekstli dəstək dialoqları. | Empatik dəstək agenti.citeturn2search0 |
 | `gpt-4o` | Mətn + şəkil girişləri, yüksək keyfiyyətli multimodal cavablar. | Texniki diaqnostika, OCR, multimodal sintez.citeturn3search5 |
 | `gpt-4o-mini` | Sürətli satış cavabları, niyyət təsnifatı. | İqtisadi satış agenti / router.citeturn1search1 |
-| `gpt-4o-mini-transcribe` | Səsli mesajların sürətli STT. | WAHA PTT transkripsiya boru xətti.citeturn1search0 |
+| `whisper-1` | Səsli mesajların stabil STT-si. | WhatsApp gateway PTT transkripsiya boru xətti üçün tövsiyə olunan baza model. |
 | `gpt-4o-transcribe` | Premium STT, daha yüksək dəqiqlik. | Uzun audio, çoxdilli transkriptlər.citeturn3search1 |
 | `gpt-4o-transcribe-diarize` | Spiker ayırması ilə transkript. | Mehriban məhkəmə/çağrı mərkəzi qeydləri.citeturn3search1 |
 | `gpt-4o-mini-tts` | Mətn → səs cavabları. | WhatsApp audio cavab generatoru.citeturn3search1 |
@@ -59,10 +59,10 @@ Bu sənəd NexusCore-WA ekosistemində istifadə olunan (və ya inteqrasiya üç
 
 ## 6. Router memarlığı üzrə tövsiyələr
 
-1. **İlkin təsnifat:** Hesabınızda varsa `gpt-5-nano`, əks halda `gpt-4o-mini` niyyət və triggerləri təsnif edir.citeturn0search1turn1search1
-2. **Orkestrator:** Kompleks dialoqlar üçün `gpt-5.1` (və ya `gpt-4.1`).citeturn0search2turn2search3
+1. **İlkin təsnifat:** Default olaraq `gpt-4o-mini` router rolunu oynayır; tenant səviyyəsində mövcuddursa `gpt-5-nano` ilə gecikməni daha da azalda bilərsiniz.citeturn1search1
+2. **Orkestrator:** Kompleks dialoqlar üçün `gpt-4o` (və ya tenantda aktiv olan `gpt-5.*`).citeturn2search3
 3. **Multimodal / diaqnostika:** Şəkil, OCR, texniki analiz üçün `gpt-4o`; ehtiyatda `gpt-4o` mövcud deyilsə `gpt-5` modeli də şəkil girişini dəstəkləyir.citeturn3search5turn0search3
-4. **Audio boru xətti:** STT üçün `gpt-4o-mini-transcribe`, daha dəqiq nəticə üçün `gpt-4o-transcribe` və ya diarize varianta keçid.citeturn1search0turn3search1
+4. **Audio boru xətti:** Standart olaraq `whisper-1`, daha dəqiq nəticə üçün `gpt-4o-transcribe` və ya diarize varianta keçid.citeturn3search1
 5. **Kod alətləri:** Kod-centric iş axınları üçün `gpt-5.1-codex` və ya `gpt-5.1-codex-mini`; WA agentində `reasoning.effort` parametrini testi mühitində tənzimlə.citeturn1search6turn0search6
 6. **Realtime:** Səsli çağırış boru xətti üçün `gpt-realtime` (və ya mini) ilə WebRTC adapterini yenilə.citeturn3search0
 
@@ -70,14 +70,14 @@ Bu sənəd NexusCore-WA ekosistemində istifadə olunan (və ya inteqrasiya üç
 
 | Env dəyişəni | Tövsiyə olunan dəyər | Şərh |
 | --- | --- | --- |
-| `OPENAI_MODEL` | `gpt-5.1` *(mövcuddursa)*; əks halda `gpt-4.1`. | Agent orkestratoru.citeturn0search2turn2search3 |
-| `AGENT_MODEL_GENERAL` | `gpt-5.1` → fallback `gpt-4.1`. | Ümumi dialoq. |
-| `AGENT_MODEL_SALES` | `gpt-5-mini` → fallback `gpt-4o-mini`. | Sürətli satış təklifləri.citeturn0search0turn1search1 |
-| `AGENT_MODEL_SUPPORT` | `gpt-4.1-mini`. | Empatik dəstək cavabları.citeturn2search0 |
-| `AGENT_MODEL_DIAGNOSTICS` | `gpt-4o` → yüksək dəqiqlik üçün `gpt-5` test et. | Multimodal diaqnostika.citeturn3search5turn0search3 |
+| `OPENAI_MODEL` | `gpt-4o-mini` *(default)*; ehtiyac olarsa `gpt-4o`. | Agent orkestratoru. |
+| `AGENT_MODEL_GENERAL` | `gpt-4o-mini`. | Ümumi dialoq. |
+| `AGENT_MODEL_SALES` | `gpt-4o`. | Sürətli satış təklifləri. |
+| `AGENT_MODEL_SUPPORT` | `gpt-4o-mini`. | Empatik dəstək cavabları. |
+| `AGENT_MODEL_DIAGNOSTICS` | `gpt-4o`. | Multimodal diaqnostika. |
 | `OPENAI_VISION_MODEL` | `gpt-4o`. | Şəkil və OCR konteksti.citeturn3search5 |
-| `OPENAI_TRANSCRIPTION_MODEL` | `gpt-4o-mini-transcribe`. | Səsli mesajların STT-si.citeturn1search0 |
-| `OPENAI_TTS_MODEL` | `gpt-4o-mini-tts`. | Mətn → səs cavabları.citeturn3search1 |
+| `OPENAI_TRANSCRIPTION_MODEL` | `whisper-1`. | Səsli mesajların STT-si. |
+| `OPENAI_TTS_MODEL` | `tts-1`. | Mətn → səs cavabları. |
 | `OPENAI_EMBEDDING_MODEL` | `text-embedding-3-small`. | Məhsul axtarışı / RAG.citeturn2search2 |
 
 ## 8. İnteqrasiya Qeydləri
@@ -85,7 +85,7 @@ Bu sənəd NexusCore-WA ekosistemində istifadə olunan (və ya inteqrasiya üç
 - **Tenant yoxlaması:** Bəzi modellər (məsələn `gpt-5-pro`, `gpt-5.1-codex`) tədricən buraxılır; həmişə `v1/models` siyahısı ilə təsdiq edin.
 - **Latency idarəsi:** `gpt-5-pro` sorğuları dəqiqələr çəkə bilər, ona görə Responses API-də background moda keçin.citeturn1search0
 - **Qiymət nəzarəti:** Token qiymətlərini OpenAI pricing səhifəsi ilə izləyin; böyük fərqlər (`$15`/1M input üçün `gpt-5-pro`) planlama zamanı nəzərə alınmalıdır.citeturn2search2
-- **Fallback dizaynı:** Hər iş axını üçün azı iki model (birincil + ehtiyat) təyin edin; məsələn STT boru xəttində `gpt-4o-mini-transcribe` → `gpt-4o-transcribe`.
+- **Fallback dizaynı:** Hər iş axını üçün azı iki model (birincil + ehtiyat) təyin edin; məsələn STT boru xəttində `whisper-1` → `gpt-4o-transcribe`.
 - **Sənədləşmə sinxronu:** `docs/openai.md` faylındakı API nümunələri və env şablonları bu cədvələ uyğun saxlanılmalıdır.
 
-Bu konstellasiya cədvəli WAHA agentini konfiqurasiya edərkən və yeni iş axınları dizayn edərkən istinad kimi istifadə olunmalıdır. Yeni model ailəsi əlavə olunduqda (məsələn, Sora, Realtime yeniləmələri) burada müvafiq bölmə açın və env tövsiyələrini yeniləyin.
+Bu konstellasiya cədvəli WhatsApp gateway agentini konfiqurasiya edərkən və yeni iş axınları dizayn edərkən istinad kimi istifadə olunmalıdır. Yeni model ailəsi əlavə olunduqda (məsələn, Sora, Realtime yeniləmələri) burada müvafiq bölmə açın və env tövsiyələrini yeniləyin.

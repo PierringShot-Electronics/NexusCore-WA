@@ -4,12 +4,12 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import * as z from 'zod/v4';
 import { env } from '../config/env';
 import { logger } from '../utils/logger';
-import { wahaClient } from '../services/agent/wahaClient';
+import { whatsappGatewayClient } from '../services/agent/whatsappGatewayClient';
 import { hasOpenAI, openaiClient } from '../config/ai';
 import { loadBusinessPrompt } from '../services/agent/promptLoader';
 
 const server = new McpServer({
-  name: 'nexuscore-waha-mcp',
+  name: 'nexuscore-wweb-mcp',
   version: '0.1.0'
 });
 
@@ -33,15 +33,15 @@ const sessionSchema = z
   .passthrough();
 
 server.registerTool(
-  'waha.sessionStatus',
+  'wweb.sessionStatus',
   {
-    title: 'WAHA Session Status',
-    description: 'Returns the current WAHA session status.',
+    title: 'WhatsApp Gateway Session Status',
+    description: 'Returns the current WhatsApp gateway session status.',
     inputSchema: z.object({}).optional(),
     outputSchema: sessionSchema
   },
   async () => {
-    const session = await wahaClient.getSessionStatus();
+    const session = await whatsappGatewayClient.getSessionStatus();
     if (!session) {
       const fallback = { status: 'UNAVAILABLE' };
       return {
@@ -58,11 +58,11 @@ server.registerTool(
 );
 
 server.registerTool(
-  'waha.fetchQr',
+  'wweb.fetchQr',
   {
-    title: 'Fetch WAHA session QR',
+    title: 'Fetch WhatsApp session QR',
     description:
-      'Fetches the QR code for the configured WAHA session. Returns an error payload while the session is already authenticated.',
+      'Fetches the QR code for the configured WhatsApp gateway session. Returns an error payload while the session is already authenticated.',
     inputSchema: z.object({}).optional(),
     outputSchema: z.object({
       status: z.string(),
@@ -71,7 +71,7 @@ server.registerTool(
     })
   },
   async () => {
-    const qr = await wahaClient.getSessionQr();
+    const qr = await whatsappGatewayClient.getSessionQr();
     if (!qr) {
       const payload = { status: 'PENDING', error: 'qr_not_available' };
       return {
@@ -100,11 +100,10 @@ server.registerTool(
 );
 
 server.registerTool(
-  'waha.sendText',
+  'wweb.sendText',
   {
     title: 'Send WhatsApp text message',
-    description:
-      'Sends a plain text message through WAHA using the configured session.',
+    description: 'Sends a plain text message through the built-in WhatsApp gateway.',
     inputSchema: z.object({
       chatId: z.string().min(5, 'chatId must be provided e.g. 123456789@c.us'),
       text: z.string().min(1, 'Message text cannot be empty')
@@ -114,7 +113,7 @@ server.registerTool(
     })
   },
   async ({ chatId, text }) => {
-    await wahaClient.sendMessages({
+    await whatsappGatewayClient.sendMessages({
       chatId,
       messages: [{ type: 'text', body: text }]
     });
@@ -145,7 +144,7 @@ server.registerTool(
   {
     title: 'Generate reply with OpenAI',
     description:
-      'Generates WhatsApp-ready responses using OpenAI and optionally delivers them via WAHA.',
+      'Generates WhatsApp-ready responses using OpenAI and optionally delivers them via the WhatsApp gateway.',
     inputSchema: replyInputSchema,
     outputSchema: replyOutputSchema
   },
@@ -156,7 +155,7 @@ server.registerTool(
       if (!chatId) {
         throw new Error('chatId is required when send=true');
       }
-      await wahaClient.sendMessages({
+      await whatsappGatewayClient.sendMessages({
         chatId,
         messages: replies.map((body) => ({ type: 'text', body }))
       });
@@ -244,7 +243,7 @@ const port = Number.parseInt(process.env.MCP_PORT ?? env.MCP_PORT ?? '3030', 10)
 
 app
   .listen(port, () => {
-    logger.info({ port }, 'WAHA MCP server listening');
+    logger.info({ port }, 'WWeb MCP server listening');
   })
   .on('error', (error) => {
     logger.error({ err: error }, 'Failed to start MCP server');

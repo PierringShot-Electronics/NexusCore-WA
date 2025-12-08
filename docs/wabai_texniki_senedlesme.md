@@ -21,86 +21,85 @@ endpoint-ləri, konteynerləşdirmə (Docker) və diaqnostika metodları kimi m�
 olunacaq. Ümumilikdə, sənəd WhatsCore.AI-nın mühəndis komandası və ya sistemini təkmilləşdirmək
 istəyən mütəxəssislər üçün ətraflı bir texniki yol xəritəsi rolunu oynayır.
 
- 	 ⁍ (2) - WAHA əsaslı WhatsApp API inteqrasiyası və axınları (Express +
-WAHA + Docker)
-WhatsCore.AI, WhatsApp mesajlaşmalarını idarə etmək üçün açıq mənbəli WAHA (WhatsApp HTTP API)
-platformasından istifadə edir. WAHA, WhatsApp Web protokolundan yararlanan bir REST API serveridir və
-Docker konteyneri şəklində asanlıqla işə salına bilir 3 . Sistem arxitekturunda WAHA “WhatsApp
-transport” rolunu oynayır: yəni WhatsApp-dan gələn və gedən bütün mesajlar WAHA vasitəsilə qəbul edilir
-və göndərilir. Layihə WAHA-nı Node.js mühitində çalışan Express serveri ilə birləşdirir, beləliklə WhatsApp
+ 	 ⁍ (2) - WhatsApp gateway əsaslı WhatsApp API inteqrasiyası və axınları (Express +
+WhatsApp gateway + Docker)
+WhatsCore.AI, WhatsApp mesajlaşmalarını idarə etmək üçün açıq mənbəli WhatsApp gateway (WhatsApp HTTP API)
+platformasından istifadə edir. WhatsApp gateway, WhatsApp Web protokolundan yararlanan bir REST API serveridir və
+Docker konteyneri şəklində asanlıqla işə salına bilir 3 . Sistem arxitekturunda WhatsApp gateway “WhatsApp
+transport” rolunu oynayır: yəni WhatsApp-dan gələn və gedən bütün mesajlar WhatsApp gateway vasitəsilə qəbul edilir
+və göndərilir. Layihə WhatsApp gateway-nı Node.js mühitində çalışan Express serveri ilə birləşdirir, beləliklə WhatsApp
 mesajları konteynerdaxili brauzer sessiyası vasitəsilə emal olunur və bizim əsas tətbiqimizlə rahat
 inteqrasiya olur.
 
-Docker və WAHA: Layihənin Docker Compose tərkibində WAHA üçün xüsusi bir servis müəyyən olunub.
-Məsələn, docker-compose faylında WAHA servisi devlikeapro/waha:latest imicindən qurulur, lazımi
-mühit dəyişənləri (WAHA_API_KEY, WAHA_HMAC_SECRET və s.) təyin edilir, port 3000 -ə xəritələnir və
-persistensiya üçün lokal həcm qoşulur 4 5 . Aşağıda docker-compose konfiqurasiyasından WAHA
-servisinin bir hissəsi göstərilib:
+Docker və WhatsApp gateway: Layihənin Docker Compose tərkibində WhatsApp gateway üçün xüsusi bir servis müəyyən olunub.
+Yeni reallaşdırmada bu servis `./gateway/Dockerfile` üzərindən qurulur, `whatsapp-web.js` müştərisini və Chromium asılılıqlarını özündə saxlayır.
+Əsas mühit dəyişənləri (`WHATSAPP_GATEWAY_SESSION`, `WHATSAPP_GATEWAY_WEBHOOK_URL`, `WHATSAPP_GATEWAY_WEBHOOK_EVENTS`) konfiqurasiyaya daxil edilir,
+port `3001` host maşında xəritələnir və sessiya məlumatlarının saxlanılması üçün `./data/whatsapp-gateway/session` qovluğu konteynerə mount olunur 4 5 .
+Aşağıda docker-compose konfiqurasiyasından WhatsApp gateway servisinin bir hissəsi göstərilib:
 
 	፨	፨	፨	( 1 )	፨	፨	፨	
 
  services:
- waha:
- image: devlikeapro/waha:latest
- container_name: waha
- depends_on:
- - redis
- environment:
- WAHA_API_KEY: ${WAHA_API_KEY}
- WAHA_API_KEY_HASH: ${WAHA_API_KEY_HASH}
- WAHA_HMAC_SECRET: ${WAHA_HMAC_SECRET}
- WAHA_WEBHOOK_URL: http://host.docker.internal:9876/api/webhooks/waha
- ports:
- - "${WHATSAPP_API_PORT:-3000}:3000"
- volumes:
- - ${WAHA_STORAGE} # WAHA üçün yaddaş (məs: ./data/waha)
- restart: unless-stopped
+   gateway:
+     build: ./gateway
+     container_name: gateway
+     depends_on:
+       - redis
+     environment:
+       WHATSAPP_GATEWAY_SESSION: ${WHATSAPP_GATEWAY_SESSION:-default}
+       WHATSAPP_GATEWAY_WEBHOOK_URL: http://host.docker.internal:9876/api/webhooks/gateway
+       WHATSAPP_GATEWAY_WEBHOOK_EVENTS: message.any
+     ports:
+       - "${WHATSAPP_GATEWAY_PORT:-3001}:3001"
+     volumes:
+       - ./data/whatsapp-gateway/session:/usr/src/app/.whatsapp-session
+     restart: unless-stopped
 ``` 6 7
 
-> **Qeyd:** WAHA API-nin istifadəsi üçün **API açarı** tələb olunur. `.env`
-faylında `WAHA_API_KEY` dəyəri müəyyən edilməli və WAHA konteyneri başladıqdan
+> **Qeyd:** WhatsApp gateway API-nin istifadəsi üçün **API açarı** tələb olunur. `.env`
+faylında `WhatsApp gateway_API_KEY` dəyəri müəyyən edilməli və WhatsApp gateway konteyneri başladıqdan
 sonra bütün sorğularda `X-Api-Key` header-i kimi göndərilməlidir 8 9 . Docker-
-compose yuxarıda göstərilən `WAHA_API_KEY` və s. dəyişənləri `.env`-dən
-götürərək konteynerə ötürür. WAHA ilk başladıqda **QR kodu** vasitəsilə WhatsApp
-hesabının qoşulmasını tələb edir. Bunun üçün WAHA API-yə `POST /api/sessions`
+compose yuxarıda göstərilən `WhatsApp gateway_API_KEY` və s. dəyişənləri `.env`-dən
+götürərək konteynerə ötürür. WhatsApp gateway ilk başladıqda **QR kodu** vasitəsilə WhatsApp
+hesabının qoşulmasını tələb edir. Bunun üçün WhatsApp gateway API-yə `POST /api/sessions`
 sorğusu göndərib sessiya yaradılır və daha sonra `GET /api/screenshot?
 session=<name>` endpoint-i ilə QR kodu əldə olunur 10 . İstifadəçi bu QR kodu
-WhatsApp tətbiqində (Linked Devices bölməsində) skan etməklə WAHA serverini
+WhatsApp tətbiqində (Linked Devices bölməsində) skan etməklə WhatsApp gateway serverini
 telefondakı WhatsApp hesabına birləşdirir.
 
 **Mesajların axını:** WhatsApp istifadəçisindən bir mesaj gəldikdə, bu mesaj
-WAHA konteynerində qəbul olunur. WAHA, konfiqurasiyada göstərilmiş **webhook
+WhatsApp gateway konteynerində qəbul olunur. WhatsApp gateway, konfiqurasiyada göstərilmiş **webhook
 URL**-nə həmin mesaj haqqında bir HTTP POST sorğusu göndərir 11 . Bizim
 sistemimizdə bu webhook URL Express serverində xüsusi route-dur: `POST /api/
-webhooks/waha`. Express API bu sorğunu qəbul edir və mesajın məzmununu (metn,
+webhooks/gateway`. Express API bu sorğunu qəbul edir və mesajın məzmununu (metn,
 şəkil, səs, video və s. tipini) təhlil edir. Daha sonra mesaj **orchestrator**
 moduluna ötürülür ki, burada AI model çağırışları, alət inteqrasiyaları və digər
 məntiqi emal addımları həyata keçirilsin (bölmə 11-də izah olunur). Nəticədə
-generasiya olunan cavab mətni yenidən WAHA API-yə yönləndirilir:
-Express serveri WAHA-nın müvafiq mesaj göndərmə endpoint-ni çağıraraq botun
+generasiya olunan cavab mətni yenidən WhatsApp gateway API-yə yönləndirilir:
+Express serveri WhatsApp gateway-nın müvafiq mesaj göndərmə endpoint-ni çağıraraq botun
 cavabını istifadəçiyə WhatsApp üzərindən göndərir 12 13 . Bu proses tam
 avtomatikdir və real vaxtda (bir neçə saniyə içində) baş verir.
 
 **Media faylların ötürülməsi:** İstifadəçi mediaya aid mesaj göndərdikdə
-(məsələn, şəkil, video və ya səsli mesaj), WAHA ilkin olaraq həmin medianın
+(məsələn, şəkil, video və ya səsli mesaj), WhatsApp gateway ilkin olaraq həmin medianın
 meta-məlumatlarını webhook ilə Express-ə ötürür. Media faylının özünü əldə etmək
-üçün Express, WAHA API vasitəsilə müvafiq yükləmə endpoint-inə sorğu göndərir
+üçün Express, WhatsApp gateway API vasitəsilə müvafiq yükləmə endpoint-inə sorğu göndərir
 
 	፨	፨	፨	( 2 )	፨	፨	፨	
 
- (məsələn, `GET /api/waha/messages/<mesajID>/download` yolu ilə). WAHA media
+ (məsələn, `GET /api/gateway/messages/<mesajID>/download` yolu ilə). WhatsApp gateway media
 faylını yükləyib cavab olaraq qaytarır, Express isə onu emal etmək üçün
 müvəqqəti olaraq **`media/temp/`** qovluğuna yazır (və ya yaddaşa alır) 14 15 .
 Daha sonra həmin fayl Groq API vasitəsilə analiz olunur (şəklin təsviri, səs
 faylının transkripti və s. alınır) və cavab mətni formalaşdırılıb istifadəçiyə
 göndərilir. Bu multimodal emal prosesi bölmə 7-də daha ətraflı təsvir olunur.
 
-Beləliklə, WAHA integrasiyası sayəsində WhatsCore.AI rəsmi WhatsApp Business
+Beləliklə, WhatsApp gateway integrasiyası sayəsində WhatsCore.AI rəsmi WhatsApp Business
 API-sinə ehtiyac olmadan, birbaşa WhatsApp Web protokolu üzərindən mesaj
-göndərib qəbul edə bilir. **Express serveri** WAHA-nı proxy kimi qucaqlayaraq
+göndərib qəbul edə bilir. **Express serveri** WhatsApp gateway-nı proxy kimi qucaqlayaraq
 bütün mesajlaşma əməliyyatlarını (sessiya idarəsi, mesaj göndərmə, media yükləmə
 və s.) öz API-ləri ilə təqdim edir. Bu da sistemə WhatsApp kanalını rahat
-genişləndirməyə, bir neçə modul (WAHA, AI, memory və s.) arasında işi bölməyə
+genişləndirməyə, bir neçə modul (WhatsApp gateway, AI, memory və s.) arasında işi bölməyə
 imkan verir.
 
 ## 3. Groq API inteqrasiyası (llama/gpt-oss/kimi/whisper modelləri)
@@ -158,7 +157,7 @@ birləşdirilib sistemə JSON formatında qaytarılır (məsələn, `{"caption":
 metodu audio faylı mətnə çevirir. Nəticə, aşkar olunan nitqin mətnidir (məsələn,
 `"Salam, necəsən?"`).
 - **Video üçün analiz:** Hal-hazırda video mesajların emalı bir neçə addımdan
-ibarətdir. WAHA vasitəsilə video faylının səs trekini çıxarıb Whisper modelinə
+ibarətdir. WhatsApp gateway vasitəsilə video faylının səs trekini çıxarıb Whisper modelinə
 ötürürük (ümumi transkript almaq üçün). Əlavə olaraq video faylından müəyyən
 intervalda kadrlar çəkib Vision modelinə ötürməklə vizual təsvirlər də ala
 bilərik. Məsələn, videoda müəyyən bir məhsul varsa, model onu təsvir edib qeyd
@@ -488,7 +487,7 @@ və nitqtanıma modelləri ilə inteqrasiyası sayəsində həyata keçirilir
 (bax: Bölmə 3). Media emalının texniki detalları:
 
 - **Şəkil (PHOTO) emalı:** İstifadəçi WhatsApp-da bota hər hansı şəkil
-göndərdikdə, sistem ilk növbədə WAHA vasitəsilə həmin şəkil faylını əldə edir
+göndərdikdə, sistem ilk növbədə WhatsApp gateway vasitəsilə həmin şəkil faylını əldə edir
 (yükləyir). Sonra bu fayl **Groq Vision** modelinə ötürülür. Orada eyni anda iki
 əsas əməliyyat aparılır: (1) Şəklin məzmununa dair təsvirin generasiyası
 (captioning), (2) Şəkildə yazılar varsa, onların tanınması (OCR – optical
@@ -511,7 +510,7 @@ atır və alınan caption/OCR nəticələrini yığaraq cavabı JSON formatında
 formalaşdırır.
 
 - **Səs (AUDIO) emalı:** İstifadəçi səsli mesaj (voice note) göndərdikdə sistem
-yenə WAHA vasitəsilə audio faylı yükləyir. Bu fayl Groq transcription (Whisper)
+yenə WhatsApp gateway vasitəsilə audio faylı yükləyir. Bu fayl Groq transcription (Whisper)
 modelinə göndərilir. Model audio-dakı nitqi mətnə çevirir və nəticə olaraq
 transkript mətn qaytarır. Sistem bu mətni cavab şəklində istifadəçiyə göndərir,
 önündə *(AUDIO)* etiketi qeyd edir 40 . Cavabın özü audio faylının məzmununun
@@ -559,7 +558,7 @@ göndərilib cavabların alınması, `services/speechProcessor.js` modulunda is�
 audio transkriptinin alınması həyata keçirilir.
 
 **Output formatlama:** Yuxarıda qeyd edildiyi kimi, cavab mətni media növünə
-uyğun tag ilə başlayır 40 . Bu UI səviyyəsində də anlaşılırlıq yaradır. WAHA
+uyğun tag ilə başlayır 40 . Bu UI səviyyəsində də anlaşılırlıq yaradır. WhatsApp gateway
 interfeysində də istifadəçi bu mesajı aldığı zaman məsələn, (PHOTO) ilə
 başladığını görəcək. Bundan əlavə, əgər bot bir media faylını emal edib cavab
 verirsə, cavabın sonunda əlavə izahat və ya CTA da ola bilər. Məsələn, bot şəkil
@@ -581,16 +580,16 @@ planlaşdırılıb.
 **Nümunə:** Aşağıda bir media emal prosesi addımlarıyla göstərilib:
 
  	 ⁍ (1) - İstifadəçi WhatsApp-da bot nömrəsinə bir foto göndərir.
- 	 ⁍ (2) - WAHA bu hadisəyə uyğun Express-də `/api/webhooks/waha` endpoint-nə JSON sorğu
+ 	 ⁍ (2) - WhatsApp gateway bu hadisəyə uyğun Express-də `/api/webhooks/gateway` endpoint-nə JSON sorğu
 göndərir. Sorğuda medianın metadataları (fayl id-si, növü = image və s.) olur.
- 	 ⁍ (3) - Express `mediaClient` vasitəsilə WAHA API-dən həmin faylı yükləyir (məsələn,
-`/api/waha/messages/<ID>/download`).
+ 	 ⁍ (3) - Express `mediaClient` vasitəsilə WhatsApp gateway API-dən həmin faylı yükləyir (məsələn,
+`/api/gateway/messages/<ID>/download`).
  	 ⁍ (4) - Fayl `media/temp/` altına yazılır (məs: `temp/IMG12345.jpg`).
  	 ⁍ (5) - Sistem Groq client vasitəsilə `generate_caption` və `perform_ocr` çağırır,
 nəticəni alır: `{"caption": "...", "ocr": "..."}`.
  	 ⁍ (6) - Cavab JSON obyekti hazırlanır: `{"reply": "(PHOTO) Şəkil təsviri: ...
 %^%\(n(PHOTO) Mətndə aşkarlanan: ..."}`
- 	 ⁍ (7) - Express bu cavabı WAHA-nın mesaj göndərmə endpoint-inə yönləndirir (ya
+ 	 ⁍ (7) - Express bu cavabı WhatsApp gateway-nın mesaj göndərmə endpoint-inə yönləndirir (ya
 `sendText`, ya da `sendImage` – bizdə text göndərilir əksər halda).
  	 ⁍ (8) - İstifadəçi WhatsApp-da botdan mətn cavabı alır.
 
@@ -788,8 +787,8 @@ icra vaxtı) və warranty (zəmanət müddəti) qeyd olunub. Bu YAML faylını s
 tərəfindən asan oxunur və redaktə edilir – məsələn, menecer bu faylı açıb bir qiyməti rahatlıqla düzəldə
 bilər.
 
-JSON nümunəsi – WAHA sessiya yaratma sorğusu: Bu JSON obyektini WAHA API-yə göndərərək yeni
-WhatsApp sessiyası yaratmaq olar (bir növ WAHA konfiqurasiya snippet-i). WAHA serverinə ilk qoşulma
+JSON nümunəsi – WhatsApp gateway sessiya yaratma sorğusu: Bu JSON obyektini WhatsApp gateway API-yə göndərərək yeni
+WhatsApp sessiyası yaratmaq olar (bir növ WhatsApp gateway konfiqurasiya snippet-i). WhatsApp gateway serverinə ilk qoşulma
 zamanı bunu cURL ilə etməliyik:
 
  {
@@ -798,7 +797,7 @@ zamanı bunu cURL ilə etməliyik:
  "config": {
  "webhooks": [
  {
- "url": "http://host.docker.internal:9876/api/webhooks/waha",
+ "url": "http://host.docker.internal:9876/api/webhooks/gateway",
  "events": [ "message", "session.status" ]
  }
  ]
@@ -810,16 +809,16 @@ config.webhooks altında bir array var – biz Express serverimizin adresini ( 9
 
 	፨	፨	፨	( 17 )	፨	፨	፨	
 
- WAHA oraya webhook göndərsin. events siyahısında message və session.status qeyd etmişik, yəni
+ WhatsApp gateway oraya webhook göndərsin. events siyahısında message və session.status qeyd etmişik, yəni
 həm yeni mesaj gələndə, həm də sessiya statusu (qoşuldu, ayrıldı və s.) dəyişəndə bizim webhook çağrılsın
  10 . Bu JSON sorğusunu aşağıdakı kimi göndərə bilərik (məsələn, Terminaldan):
 
 
  curl -X POST "http://localhost:3000/api/sessions" \
- -H "Content-Type: application/json" -H "X-Api-Key: <WAHA_API_KEY>" \
+ -H "Content-Type: application/json" -H "X-Api-Key: <WhatsApp gateway_API_KEY>" \
  -d '<above JSON here>'
 
-Bu cür snippet-lər sistemin qurulmasında mühüm rol oynayır. Məsələn, əgər WAHA-nı docker konteynerdə
+Bu cür snippet-lər sistemin qurulmasında mühüm rol oynayır. Məsələn, əgər WhatsApp gateway-nı docker konteynerdə
 local qaldırmışıqsa, host.docker.internal Express-in host maşın IP-sini göstərir (Windows/macOS
 docker-lərdə). Linux-da bunun əvəzinə birbaşa hostun IP-si yazıla bilər. YAML/JSON snippet-lərini düzgün
 doldurmaq mühümdür ki, sistem komponentləri bir-biri ilə əlaqəli işləsin.
@@ -834,7 +833,7 @@ dəyişənləri və snippet-ləri artıq verilib (məs: .env.example orada izah 
 isə bu snippet-lərin rolu ondan ibarətdir ki, yeni mühəndis layihəni qurarkən vaxta qənaət etsin. Yuxarıda
 nümunə göstərilən YAML və JSON parçaları real fayllardan götürülüb və sistemin necə tənzimləndiyini
 göstərir. Gələcəkdə, layihənin docs/ kataloqunda daha geniş Configuration Guide əlavə edilə bilər ki, orada
-bütün konfiq parametrlər (WAHA, Groq, DB və s.) cədvəl halında açıqlansın.
+bütün konfiq parametrlər (WhatsApp gateway, Groq, DB və s.) cədvəl halında açıqlansın.
 
 Qeyd: Konfiqurasiya dəyişiklikləri etdikdən sonra (istər YAML/JSON fayllarında, istər .env-də) sistemin
 mütləq restart olunması tövsiyə edilir ki, dəyişikliklər tətbiq olunsun. Məsələn, pricelist.yaml-da yeni xidmət
@@ -960,9 +959,9 @@ cavabı formalaşdırır. Bu proses aşağıdakı əsas komponentlərdən ibarə
  • Alət Reyestri (Tool Registry): services/orchestrator/toolRegistry.js faylında bütün
  mövcud alətlər metadataları ilə birlikdə qeydiyyata alınır 63 . Hər bir alətin adı, funksionallığı, giriş
  parametrləri (şəklində JSON schema) və icazə bayraqları var. Alətlər iki cürdür:
- • WAHA REST alətləri: Bunlar WhatsApp API-nin öz metodlarıdır. Məsələn, sendText ,
- getMessages , markRead və s. Express serverimiz WAHA-nı tam proxy etdiyi üçün (bax: Bölmə
- 12), əslində bot üçün WAHA-nın bütün funksiyaları alət kimi əlçatandır. Lakin bunların əksəriyyəti
+ • WhatsApp gateway REST alətləri: Bunlar WhatsApp API-nin öz metodlarıdır. Məsələn, sendText ,
+ getMessages , markRead və s. Express serverimiz WhatsApp gateway-nı tam proxy etdiyi üçün (bax: Bölmə
+ 12), əslində bot üçün WhatsApp gateway-nın bütün funksiyaları alət kimi əlçatandır. Lakin bunların əksəriyyəti
  botun öz daxili işində istifadə olunur (məsələn, bot istəsə, mesajı oxunmuş işarələyə bilər və s.).
  • Xüsusi alətlər: Bunlar sistemə əlavə etdiyimiz özəl funksiyalardır. Məsələn, memory.retrieve və
  memory.store – botun yaddaş bazasından məlumat oxuma və ya ora yazma alətləridir;
@@ -1058,43 +1057,43 @@ toolRegistry və customTools-da onu tanıtmaq kifayətdir. Məsələn, biz gəl�
 edib botun email göndərə bilməsini təmin edə bilərik. Alətlərin orkestrasiyası hissəsi layihənin ən mürəkkəb
 texniki cəhətidir, lakin o da README sənədində qismən izah olunmuşdur (AI orchestrator roadmap və s.) 67 .
 
- 	 ⁍ (12) - Express proxy və API endpoint-lər (GET/POST /api/waha/* və
+ 	 ⁍ (12) - Express proxy və API endpoint-lər (GET/POST /api/gateway/* və
 s.)
 Sistemin backend hissəsi bir Express.js serveri üzərində qurulub. Bu Express serveri yalnız öz daxili
-funksionallığını təqdim etmir, eyni zamanda WAHA konteynerinin API-sini də tamamilə proxy edir. Bu o
-deməkdir ki, bütün WAHA REST endpoint-lərinə Express vasitəsilə müraciət etmək mümkündür.
-Qısaca: Express serveri altında /api/waha/* prefiksi ilə başlayan bütün sorğular olduğu kimi WAHA-ya
+funksionallığını təqdim etmir, eyni zamanda WhatsApp gateway konteynerinin API-sini də tamamilə proxy edir. Bu o
+deməkdir ki, bütün WhatsApp gateway REST endpoint-lərinə Express vasitəsilə müraciət etmək mümkündür.
+Qısaca: Express serveri altında /api/gateway/* prefiksi ilə başlayan bütün sorğular olduğu kimi WhatsApp gateway-ya
 yönləndirilir 68 .
 
-Express işə düşərkən index.js faylında WAHA proxy routeları konfiqurasiya olunur. Orada wildcard route
-təyin edilib ki, /api/waha/<path> gələn sorğunu götürüb WAHA API-nə eyni <path> ilə forward etsin
- 68 . Məsələn: - İstifadəçi (və ya dev) bizim serverə GET http://localhost:9876/api/waha/status
-sorğusu göndərsə, Express bu sorğunu alıb WAHA konteynerindəki GET /api/status endpoint-nə
+Express işə düşərkən index.js faylında WhatsApp gateway proxy routeları konfiqurasiya olunur. Orada wildcard route
+təyin edilib ki, /api/gateway/<path> gələn sorğunu götürüb WhatsApp gateway API-nə eyni <path> ilə forward etsin
+ 68 . Məsələn: - İstifadəçi (və ya dev) bizim serverə GET http://localhost:9876/api/gateway/status
+sorğusu göndərsə, Express bu sorğunu alıb WhatsApp gateway konteynerindəki GET /api/status endpoint-nə
 çağırış edir və geri aldığı JSON-u olduğu kimi istifadəçiyə qaytarır. - Yaxud
- POST http://localhost:9876/api/waha/sendText sorğusu göndərilirsə, Express bunu WAHA-nın
+ POST http://localhost:9876/api/gateway/sendText sorğusu göndərilirsə, Express bunu WhatsApp gateway-nın
 POST /api/sendText kimi icra edir, oradan cavabı alır və geri ötürür.
 
-Bu proxy mexanizmi bir neçə rahatlıq yaradır: 1. Təhlükəsizlik: Biz WAHA konteynerini birbaşa müştəriyə
+Bu proxy mexanizmi bir neçə rahatlıq yaradır: 1. Təhlükəsizlik: Biz WhatsApp gateway konteynerini birbaşa müştəriyə
 açmamış oluruq. Bütün zənglər Express-dən keçdiyi üçün əlavə kontrol imkanımız olur (məsələn,
-authentikasiya, rate-limit tətbiqi kimi). WAHA-nın özündə də API açar mexanizmi var, amma Express qatında
+authentikasiya, rate-limit tətbiqi kimi). WhatsApp gateway-nın özündə də API açar mexanizmi var, amma Express qatında
 əlavə tədbirlər görmək mümkündür. 2. Konfiqurasiya sadəliyi: Müştəri (ön tərəf və ya digər servislər) üçün
-tək bir API hostu olur – 9876 portunda Express. Onun altında həm WAHA funksiyaları, həm də öz xüsusi
+tək bir API hostu olur – 9876 portunda Express. Onun altında həm WhatsApp gateway funksiyaları, həm də öz xüsusi
 endpointlərimiz mövcuddur. Beləliklə, müxtəlif portlara qoşulmağa ehtiyac qalmır. 3. Əlavə məntiq
-imkanları: Express, WAHA-dan gələn cavablara lazım gələrsə müdaxilə edə bilər. Hazırki implementasiyada
-biz WAHA cavablarını toxunulmaz saxlayırıq, sadəcə header-ları forward edirik 69 . Məsələn, QR kodu
+imkanları: Express, WhatsApp gateway-dan gələn cavablara lazım gələrsə müdaxilə edə bilər. Hazırki implementasiyada
+biz WhatsApp gateway cavablarını toxunulmaz saxlayırıq, sadəcə header-ları forward edirik 69 . Məsələn, QR kodu
 binary-data olduğu üçün Content-Type header-i qorunmalıdır ki, brauzer düzgün göstərsin. Express
 proxy bunu təmin edir 69 .
 
 Default sessiya: Proxy routelarda bir incəlik də odur ki, əgər sorğu URL-ində və ya query parametrlərdə
- session göstəricisi yoxdursa, Express avtomatik WAHA_SESSION (env-də "default" kimi təyin olunub)
+ session göstəricisi yoxdursa, Express avtomatik WhatsApp gateway_SESSION (env-də "default" kimi təyin olunub)
 dəyərini əlavə edir 70 . Yəni bir çox hallarda istifadəçinin URL yazarkən sessiya adını verməsinə ehtiyac
-qalmır, sistem özü default-u qoyur. Məsələn, birbaşa /api/waha/sendText çağıranda Express onu WAHA-
+qalmır, sistem özü default-u qoyur. Məsələn, birbaşa /api/gateway/sendText çağıranda Express onu WhatsApp gateway-
 da /api/sendText?session=default kimi icra edəcək. Bu da tək sessiyalı hallarda işləri rahatlaşdırır.
 Əgər birdən çox sessiya idare olunursa (məsələn, bir bot bir neçə WhatsApp nömrəsinə qoşulubsa), o
 zaman sorğularda mütləq session=<name> verilməlidir ki, doğru session üzərindən getsin.
 
 Əsas Express endpoint-ləri: Proxy-dən əlavə, Express bir sıra öz endpointlərini də təqdim edir: - GET /
-api/status – Botun ümumi vəziyyətini göstərir: WAHA transportu bağlıdırmı, birləşik sessiya varmı,
+api/status – Botun ümumi vəziyyətini göstərir: WhatsApp gateway transportu bağlıdırmı, birləşik sessiya varmı,
 yaddaş bazası aktivdirmi və s. Bu, bir növ sağlamlıq yoxlama (health check) kimi istifadə oluna bilər. - GET /
 api/health – Daha sadə sağlamlıq endpointr. Sadəcə JSON {"status":"ok"} qaytarır ya da əks halda
 
@@ -1103,87 +1102,87 @@ api/health – Daha sadə sağlamlıq endpointr. Sadəcə JSON {"status":"ok"} q
  error detalları. Bu, load balancer-lərin və s. periodik yoxlaması üçün nəzərdə tutulub 71 . - GET /api/
 session – Mövcud WhatsApp sessiyalarının siyahısını JSON formatda qaytarır (adları və statusları ilə). -
 POST /api/session – Yeni sessiya yaratmağa imkan verir (body-də name və optional webhooks
-parametrləri qəbul edir). Bu, əslində WAHA-nın POST /api/sessions metoduna çağırış edir, sadəcə bir
+parametrləri qəbul edir). Bu, əslində WhatsApp gateway-nın POST /api/sessions metoduna çağırış edir, sadəcə bir
 az sadələşdirilmiş formadadır və default parametrləri doldurur. - POST /api/session/:session/
 restart , POST /api/session/:session/logout , DELETE /api/session/:session – Sessiya
 lifecycle əmrləri. Məsələn, QR koda ehtiyac yaranıbsa, logout edib yenidən qoşmaq olar. restart
-WAHA engine-ni yenidən yükləyir (WhatsApp Web session-u refresh edir). Bunlar da WAHA-nın eyni adlı
-endpointlərinə proxydir əslində, sadəcə Express bunları bir az da developer-friendly edir (məsələn, WAHA-
+WhatsApp gateway engine-ni yenidən yükləyir (WhatsApp Web session-u refresh edir). Bunlar da WhatsApp gateway-nın eyni adlı
+endpointlərinə proxydir əslində, sadəcə Express bunları bir az da developer-friendly edir (məsələn, WhatsApp gateway-
 dakı uzun yolları qısaldır). - GET /api/session/:session/auth/qr – Hazırda aktiv QR kodunu base64
 formatında qaytarır. Bunu brauzerdə açdıqda QR şəklini görmək olur. Həmçinin ?format=image query-si
 versən, birbaşa PNG image stream göndərir ki, brauzer onu şəkil kimi göstərsin 72 73 . - PUT /api/
 session/:session/profile/name|status|picture – Botun WhatsApp profil adını, məlumatını və ya
-şəkilini dəyişməyə imkan verir (WAHA biznes API-nin funksiyası). - POST /api/messages/text|image|
-video|voice|... – Bu birbaşa WAHA-nın mesaj göndərmə metodlarını çağırır (bizim botun adından hər
+şəkilini dəyişməyə imkan verir (WhatsApp gateway biznes API-nin funksiyası). - POST /api/messages/text|image|
+video|voice|... – Bu birbaşa WhatsApp gateway-nın mesaj göndərmə metodlarını çağırır (bizim botun adından hər
 hansı bir nömrəyə mesaj göndərmək üçün). Məsələn, POST /api/messages/text body-də number və
-message alır, WAHA-nın sendText -ini çağırır. Bunlar texniki olaraq WAHA proxy-dən fərqli
-implementasiya deyil, sadəcə /api/waha/sendText kimi işləyə də bilərdik. Bizim kodda bunlar da bir route
-olaraq var idi, ancaq hal-hazırda hamısı /api/waha altına yönləndirilib. - GET /api/chats/:chatId/
-messages və digər chat idarə əmrləri: WAHA-nın chat oxuma, mesajları read etmək, presence (yazır
+message alır, WhatsApp gateway-nın sendText -ini çağırır. Bunlar texniki olaraq WhatsApp gateway proxy-dən fərqli
+implementasiya deyil, sadəcə /api/gateway/sendText kimi işləyə də bilərdik. Bizim kodda bunlar da bir route
+olaraq var idi, ancaq hal-hazırda hamısı /api/gateway altına yönləndirilib. - GET /api/chats/:chatId/
+messages və digər chat idarə əmrləri: WhatsApp gateway-nın chat oxuma, mesajları read etmək, presence (yazır
 statusu) göstərmək kimi funksiyaları bu route-larla əlçatandır 74 . - GET /api/contacts/list , POST /
 api/contacts/check – Kontakt siyahısını almaq və nömrənin WhatsApp-da olub olmadığını yoxlamaq. -
 GET /api/labels və s. – WA Business API üçün label-ların idarəsi (məsələn, müştəriləri “VIP”, “New” kimi
-label-ləmə). - GET /api/apps – WAHA multi-device üçün nəzərdə tutulan (silinmiş). - POST /api/
+label-ləmə). - GET /api/apps – WhatsApp gateway multi-device üçün nəzərdə tutulan (silinmiş). - POST /api/
 session/:session/events – Session event-ləri manuel tetiklemek üçündür (xüsusi hallarda istifadə
 oluna bilər). - GET /api/status/posts , POST /api/status/text|image|video – WhatsApp status
 paylaşımını idarə etmə funksiyaları (WA Business API-nin unikal özəlliyi).
 
-Yuxarıdakı endpoint-lərin çoxu birbaşa WAHA-nın Swagger sənədlərində mövcud olan metodlardır. Bizim
-sənədləşdirmədə əsas diqqət verdiyimiz /api/waha/* proxy-si olduğu üçün, bir misalla bunu daha aydın
+Yuxarıdakı endpoint-lərin çoxu birbaşa WhatsApp gateway-nın Swagger sənədlərində mövcud olan metodlardır. Bizim
+sənədləşdirmədə əsas diqqət verdiyimiz /api/gateway/* proxy-si olduğu üçün, bir misalla bunu daha aydın
 göstərək. Nümunə: Botun qoşulu olduğu nömrədən test məqsədilə öz telefonumuza mesaj göndərmək
 istəyirik. Terminaldan belə bir sorğu atırıq:
 
  curl -s -X POST \
- http://localhost:9876/api/waha/sendText \
+ http://localhost:9876/api/gateway/sendText \
  -H "Content-Type: application/json" \
  -d '{"number":"99450XXXXXXX","message":"Proxy test"}'
  ``` 75
 
- Bu cURL sorğusu nəticəsində WAHA konteyneri "99450XXXXXXX" nömrəsinə "Proxy
+ Bu cURL sorğusu nəticəsində WhatsApp gateway konteyneri "99450XXXXXXX" nömrəsinə "Proxy
  test" mətni olan WhatsApp mesajı göndərəcək. Biz bunu Express üzərindən etdik,
- yəni birbaşa WAHA-nın 3000 portuna getmədik. Express burada `WAHA_API_BASE`
+ yəni birbaşa WhatsApp gateway-nın 3000 portuna getmədik. Express burada `WhatsApp gateway_API_BASE`
  (`http://localhost:3000`) ünvanını bilir və backend-də sorğunu oraya post edir.
- Cavabda WAHA adətən göndərdiyi mesajın ID-sini və statusunu JSON olaraq
+ Cavabda WhatsApp gateway adətən göndərdiyi mesajın ID-sini və statusunu JSON olaraq
  qaytarır. Biz də həmin JSON-u görəcəyik.
 
 	፨	፨	፨	( 24 )	፨	፨	፨	
 
  Başqa bir misal, aktiv sessiyanın statusunu öyrənmək üçün:
  ```bash
- curl -X GET http://localhost:9876/api/waha/sessions/default
+ curl -X GET http://localhost:9876/api/gateway/sessions/default
 
-sorğusunu göndəririk. Cavab olaraq WAHA-dan sessiyanın statusunu (CONNECTED/DISCONNECTED, QR
+sorğusunu göndəririk. Cavab olaraq WhatsApp gateway-dan sessiyanın statusunu (CONNECTED/DISCONNECTED, QR
 lazımdır ya yox və s.) bildirən JSON gəlir 76 . Bu da Express proxy sayəsində mümkün oldu.
 
 Webhook endpoint (ingress): Express öz üzərində bir vacib endpoint də host edir:
-POST /api/webhooks/waha . Bu, WAHA konfiqurasiyasında qeyd etdiyimiz webhook URL-dir. WAHA-da
-bir event olduqda (yeni mesaj gəldi kimi) WAHA konteyneri Express-in bu endpointinə HTTP POST sorğusu
-göndərir. Express serverində app.post('/api/webhooks/waha', ...) route-u mövcuddur və burada
+POST /api/webhooks/gateway . Bu, WhatsApp gateway konfiqurasiyasında qeyd etdiyimiz webhook URL-dir. WhatsApp gateway-da
+bir event olduqda (yeni mesaj gəldi kimi) WhatsApp gateway konteyneri Express-in bu endpointinə HTTP POST sorğusu
+göndərir. Express serverində app.post('/api/webhooks/gateway', ...) route-u mövcuddur və burada
 gələn event-ləri qarşılayır 77 . Məsələn, event message gələrsə, Express onun body-sindəki məlumatı
 götürüb orchestrator.processEvent(data) funksiyasına verir. Orkestrator modulunda bu event
 növünə uyğun emal başlayır (əgər message-dırsa, mesaj tipini yoxlayıb audio/video/image routing edir, yox
 əgər session.status-dursa QR readiness-lə bağlı flag-ləri təzələyir və s.). Bu webhook endpointinin
-mövcudluğu sistemin real-time işləməsini təmin edir – yəni biz polling etmədən WAHA-dan push ala bilirik.
+mövcudluğu sistemin real-time işləməsini təmin edir – yəni biz polling etmədən WhatsApp gateway-dan push ala bilirik.
 
 Qeyd: Hazırki reallaşdırmada Express proxy public mühitdə də işləyə bilər, lakin mütləq autentifikasiya
-arxasında olmalıdır. Default-da biz hər hansı auth tətbiq etməmişik, sadəcə WAHA-nın X-Api-Key
-mexanizminə güvənirik (Express WAHA-ya sorğu atanda öz .env-dəki WAHA_API_KEY-i header-ə qoyur).
-Lakin əgər 9876 portu external açıq olarsa, oraya gələn sorğular asanlıqla WAHA-nı by-pass edib zərər verə
+arxasında olmalıdır. Default-da biz hər hansı auth tətbiq etməmişik, sadəcə WhatsApp gateway-nın X-Api-Key
+mexanizminə güvənirik (Express WhatsApp gateway-ya sorğu atanda öz .env-dəki WhatsApp gateway_API_KEY-i header-ə qoyur).
+Lakin əgər 9876 portu external açıq olarsa, oraya gələn sorğular asanlıqla WhatsApp gateway-nı by-pass edib zərər verə
 bilər. Ona görə, tövsiyə budur ki, production-da Express yalnız intranetdən əlçatan olsun və ya önünə bir
 reverse proxy (Traefik/Nginx) qoyulsun, orada da IP whitelisting, rate-limit və ehtiyac olarsa Basic Auth tərtib
 edilsin 78 79 .
 
-Bizim dev mühitdə Express portu lokalda qaldığı üçün böyük problem deyil – WAHA-nı isə ümumiyyətlə
+Bizim dev mühitdə Express portu lokalda qaldığı üçün böyük problem deyil – WhatsApp gateway-nı isə ümumiyyətlə
 host-dan kənara açmırıq. Belə ikən, developer rahatlıqla cURL vasitəsilə (yuxarıdakı kimi) testlər apara bilir
-və eyni zamanda WAHA Swagger interfeysinə də (http://localhost:3000) brauzerdən baxa bilir. Amma
-Swagger-i public açmaq riskli olduğu üçün onu şifrələmişik: WAHA konteyner environment-də
+və eyni zamanda WhatsApp gateway Swagger interfeysinə də (http://localhost:3000) brauzerdən baxa bilir. Amma
+Swagger-i public açmaq riskli olduğu üçün onu şifrələmişik: WhatsApp gateway konteyner environment-də
  WHATSAPP_SWAGGER_PASSWORD kimi bir parol var. Bizim start script-lər ilk işə düşəndə onu random dəyişir
 ki, kimsə qəsdən 3000 portu tapsa belə Swagger UI-ya girə bilməsin 80 .
 
 Yekun olaraq, Express proxy-nin rolu WhatsCore.AI-da vahid giriş nöqtəsi təmin etməkdir. Bütün aşağı
 səviyyə WhatsApp əmrləri, məlumatları Express API-ləri vasitəsilə ötürülür. Bu arxitektura layihənin
 genişlənməsini də asanlaşdırır – e.g. sabah biz WhatsApp-dan əlavə başqa bir kanal (məs: Telegram) əlavə
-etmək istəsək, bənzər proxy qurub Express-in altına qoşa bilərik. Hazır sənəddə biz yalnız WAHA-ya
+etmək istəsək, bənzər proxy qurub Express-in altına qoşa bilərik. Hazır sənəddə biz yalnız WhatsApp gateway-ya
 fokuslandıq, çünki layihənin adı da oradan gəlir (WhatsApp Core AI). İstifadəçilərdən/API müştərilərindən
 gələn istəklər eyni Express qatı ilə idarə olunduğu üçün, logların toplanması, error handling və s.
 mərkəzləşib. Bütün endpoint-lərin tam siyahısı README-də cURL nümunələri ilə birlikdə verilib, burada əsas
@@ -1195,28 +1194,28 @@ hazırlanıb. Xüsusən də Docker Compose faylı vasitəsilə bütün əsas kom
 
 	፨	፨	፨	( 25 )	፨	፨	፨	
 
- salmaq mümkündür. Bundan əlavə, Node.js serverinin (Express gateway) və WAHA konteynerinin birlikdə işə
+ salmaq mümkündür. Bundan əlavə, Node.js serverinin (Express gateway) və WhatsApp gateway konteynerinin birlikdə işə
 düşməsi üçün bootstrap skriptləri mövcuddur. Bu bölmədə onların necə işlədiyinə nəzər salaq:
 
 Docker Compose Stack: api/docker-compose.yml faylı, layihənin tələb etdiyi servisləri tərtib edir: -
-postgres (PostgreSQL 16-alpine imici), - redis (Redis 7-alpine), - waha (devlikeapro/waha:latest imici),
+postgres (PostgreSQL 16-alpine imici), - redis (Redis 7-alpine), - gateway (`./gateway` kataloqundan qurulan imic),
 - n8n (n8nio/n8n:latest, əgər istifadə olunursa) 81 82 .
 
 
 Bu container-lərin bəziləri opsiyonaldır. Məsələn, n8n hal-hazırda aktiv istifadədə deyil (əvvəlki
 inteqrasiyadan qalıb, istəsəniz söndürə bilərsiniz). Postgres və Redis isə memory ledger üçün lazımdır
-(Postgres) və WAHA-nın öz cache-ni saxlamaq üçün (Redis). Docker Compose faylı dəyişənlərin əksəriyyətini
+(Postgres) və WhatsApp gateway-nın öz cache-ni saxlamaq üçün (Redis). Docker Compose faylı dəyişənlərin əksəriyyətini
  .env -dən götürür – məsələn, Postgres user/password/db adı kimi parametrlər ora yazılıb (demosal:
 POSTGRES_USER, ... ) 83 . Bu dizayn bizə imkan verir ki, dev mühitdə bir docker compose up -d əmrini
-işlətdikdən sonra bütün mühit ayağa qalxır 84 : 1. WAHA konteyneri port 3000-də gedir (və ilk dəfədirsa QR
-tələb edir). 2. Redis konteyneri WAHA üçün run olur (WAHA WebJS engine-nin cache-i üçün). 3. Postgres
+işlətdikdən sonra bütün mühit ayağa qalxır 84 : 1. WhatsApp gateway konteyneri port 3000-də gedir (və ilk dəfədirsa QR
+tələb edir). 2. Redis konteyneri WhatsApp gateway üçün run olur (WhatsApp gateway WebJS engine-nin cache-i üçün). 3. Postgres
 konteyneri memory ledger və n8n üçün hazır olur. 4. (Opsiyonel) n8n konteyneri orchestration üçün run olur
 (daha əvvəl sınaqdan keçirilmiş workflow-lar var idi).
 
 Bootstrap skriptləri: Layihənin kök qovluğunda və scripts/ qovluğunda bir neçə rahat skript yazılıb: -
 pnpm run start – Bu, package.json-dakı start skriptdir. Əslində node index.js -i işə salır, amma
-ondan əvvəl bir sıra hazırlıq görür: .env faylını yoxlayır, əgər orada WAHA_DASHBOARD_PASSWORD default
-dəyərdədirsə random dəyişir, WAHA konteynerini qaldırır, sonra PM2 ilə Express serverini işə salır 85 80 .
+ondan əvvəl bir sıra hazırlıq görür: .env faylını yoxlayır, əgər orada WhatsApp gateway_DASHBOARD_PASSWORD default
+dəyərdədirsə random dəyişir, WhatsApp gateway konteynerini qaldırır, sonra PM2 ilə Express serverini işə salır 85 80 .
 Bir sözlə, tək komanda ilə həm Docker qurulur, həm Node.js gatewayi qalxır. Bu skript package.json -da
 start altında yazılıb, PM2 parametrləri orada verilib. - pnpm run start -- --qr – Bu komanda eynən
 yuxarıdakı kimidir, fərqi budur ki, o, aktiv sessiyanı logout edir və yeni QR kod generasiya etdirib fayla yazır
@@ -1225,22 +1224,22 @@ yenidən qoşmağa məcbur edir (əgər bot donubsa). - scripts/bootstrap_stack.
 compose servislərini qaldırmaq, sonra PM2 ilə serveri başlatmaq kimi işləri addım-addım edir (pnpm script-
 lə oxşardır) 88 89 . Bu skripti bir dəfə işlətməklə tam lokal mühit qalxır və sonunda QR pairing linkini
 console-a yazır. Məsələn, bash scripts/bootstrap_stack.sh deyəndə, 9876 portunda Express qalxır,
-WAHA statusu normaldımı deyə yoxlanılır və sizə "open http://localhost:3000/api/screenshot?
+WhatsApp gateway statusu normaldımı deyə yoxlanılır və sizə "open http://localhost:3000/api/screenshot?
 session=default" kimi bir link verilir (və ya birbaşa base64 QR). - scripts/bootstrap_pair.sh – Bu
 skript isə interaktiv pairing üçündür 90 . O, Docker stack-i qaldırır, əgər session yoxdursa yaradır, varsa
-opsiyonel restart edir, sonra WAHA konteyner logundan ASCII formatda QR kodu çıxarıb konsolda göstərir.
+opsiyonel restart edir, sonra WhatsApp gateway konteyner logundan ASCII formatda QR kodu çıxarıb konsolda göstərir.
 Bunun üçün konteynerin logunu grep edir, jq ilə parse edir və s. Bu skriptdən istifadə etməklə
 terminaldan çıxmadan birbaşa QR kodu scan edə bilərsiniz (terminalda ASCII blok kimi görünəcək). Bu
 xüsusilə server mühitlərində GUI olmadıqda işə yarayır. - api/stack_doctor.sh – Bu fayl Docker
 konteynerlərinin və env-nin uyğunluğunu yoxlamaq üçündür 91 . İçərisində docker compose ps
-nəticələri, WAHA containerinə /ping sorğusu, volume-ların yazıla bilən olub-olmaması kimi check-lər var.
+nəticələri, WhatsApp gateway containerinə /ping sorğusu, volume-ların yazıla bilən olub-olmaması kimi check-lər var.
 Hər şey normaldırsa, "OK" yazır, nəsə uyğunsuzluq varsa, onu aşkara çıxarır (məs: deyir filan directory write
 permission yoxdur). Bu skript pnpm run start sonunda avtomatik çağırılır ki, dev-ə məlumat versin (fail
 olsa belə start prosesini durdurmur, sadəcə xəbərdar edir) 80 .
 
 Sessiya qoşulma (pairing) addımları: Avtomatik skriptlərdən istifadə etmədən də əl ilə qoşulma
-mümkündür: 1. Terminalda docker compose up -d edirik (waha və redis qalxır). Sonra Express-i
-PORT=9876 node index.js ilə işlədirik (və ya pnpm run dev ). 2. Birinci dəfədirsa, WAHA-da sessiya
+mümkündür: 1. Terminalda docker compose up -d edirik (gateway və redis qalxır). Sonra Express-i
+PORT=9876 node index.js ilə işlədirik (və ya pnpm run dev ). 2. Birinci dəfədirsa, WhatsApp gateway-da sessiya
 yoxdu. Terminaldan: curl -X POST http://localhost:9876/api/session/start göndəririk. Bu,
 
 	፨	፨	፨	( 26 )	፨	፨	፨	
@@ -1257,30 +1256,30 @@ PM2 prosesi: Express serverini biz pm2 prosesi ilə background-da işlədirik, a
 "WABACore.AI" kimi qoyulub. pnpm run start sonda pm2 start index.js --name WABACore.AI
 edir. Bu səbəbdən, dev environment-də yenidən başlatma lazım olsa, pm2 restart WABACore.AI demək
 kifayətdir. Yaxud loqlara baxmaq üçün pm2 logs WABACore.AI etmək olar 94 . Docker konteynerlərin
-loglarına da docker logs -f waha kimi baxmaq olar 94 . Bunun hamısı Testing & Diagnostics
+loglarına da docker logs -f gateway kimi baxmaq olar 94 . Bunun hamısı Testing & Diagnostics
 bölməsində də qeyd edilib.
 
 N8N workflow (əgər istifadə olunsa): Docker compose-də n8n servisi var, və api/n8n/workflows/
-whatscore_n8n.json adlı bir workflow faylı. Bu, eksperimental bir integrasiyadır: WAHA-dan gələn
-mesajları n8n alır, orda Groq LLM node-u çağırır və WAHA-ya cavab göndərir 95 96 . Bu ikili (WAHA+n8n)
+whatscore_n8n.json adlı bir workflow faylı. Bu, eksperimental bir integrasiyadır: WhatsApp gateway-dan gələn
+mesajları n8n alır, orda Groq LLM node-u çağırır və WhatsApp gateway-ya cavab göndərir 95 96 . Bu ikili (WhatsApp gateway+n8n)
 approach-u sınaqdan keçirmək üçün düşünülmüşdü. README-də də yazılıb ki, n8n UI-da bu workflow-u
-import etmək olar, sonra WAHA-nın webhook-u ora yönləndirilir 97 95 . Lakin hal-hazırda sistem n8n-siz
+import etmək olar, sonra WhatsApp gateway-nın webhook-u ora yönləndirilir 97 95 . Lakin hal-hazırda sistem n8n-siz
 işləyəcək formada yenilənib (Express özü orchestrator rolunu oynayır). Buna baxmayaraq, docker compose
 faylında n8n komponenti saxlanılıb – istəsəniz yandırıb oradakı flow-ları test edə bilərsiniz.
 
 Yekun: Docker compose və bootstrap skriptləri sayəsində WhatsCore.AI-ı quraşdırmaq çox rahatdır.
-Standart bir prosedur: - git clone edin, - .env.example faylını .env kimi kopyalayıb içini (WAHA
+Standart bir prosedur: - git clone edin, - .env.example faylını .env kimi kopyalayıb içini (WhatsApp gateway
 açarı, Groq açarları və s.) doldurun 98 84 , - docker compose up -d edin, - pnpm install && pnpm
 run start -- --qr edin, - QR kodunu scan edin və işə başlayın.
 
 Bu adımlar bir çox komanda üzvü tərəfindən sınanıb və tipik olaraq bir neçə dəqiqəyə bot tam işlək
 vəziyyətə gəlir. Ayrıca backup və update məsələləri də düşünülüb: README-də data/ qovluqlarının
-(postgres, n8n, waha) mütəmadi backup-ı tövsiyə edilir, yeniləmə üçün isə sadəcə docker compose pull
+(postgres, n8n, gateway) mütəmadi backup-ı tövsiyə edilir, yeniləmə üçün isə sadəcə docker compose pull
 && docker compose up -d etməyin bəs edəcəyi qeyd olunub 99 100 .
 
 
 Son olaraq, sistemin ilkin bootstrap loglarını həmişə yoxlamaq lazımdır. Əgər nəsə səhv gedərsə (məsələn,
-WAHA konteyneri qoşulmazsa), stack_doctor.sh bunu göstərəcək. Orada problemlərə dair ipucları
+WhatsApp gateway konteyneri qoşulmazsa), stack_doctor.sh bunu göstərəcək. Orada problemlərə dair ipucları
 verilir (məs: env dəyişəni konfliktləri, volume mapping səhvləri və s.). Bizim misallarda heç bir problem
 çıxmadığı üçün stack_doctor.sh sonunda "All good" verdi 91 .
 
@@ -1298,8 +1297,8 @@ kimi, cavab göndərəndə [INFO] Replied with ... kimi yazılar ola bilər. - l
 qovluqda zamanla metrik loglar toplanır. Məsələn, agentin cavab vermə müddəti, istifadə olunan token
 sayları, sorğuların uğur/faiz göstəriciləri kimi məlumatlar periodik (hər X sorğuda bir) yazıla bilər. Hal-
 hazırda bura sadəcə placeholder kimidir, tam metrics implementasiya olunmayıb, ancaq plan var. - logs/
-waha/ – WAHA konteynerinin logları normalda docker logs ilə baxılır. Amma biz vacib parçaları oradan
-tutub fayla yaza bilərik. Məsələn, WAHA sessiyası kəsiləndə Express bunu hiss edib logs/waha/
+gateway/ – WhatsApp gateway konteynerinin logları normalda docker logs ilə baxılır. Amma biz vacib parçaları oradan
+tutub fayla yaza bilərik. Məsələn, WhatsApp gateway sessiyası kəsiləndə Express bunu hiss edib logs/gateway/
 events.log faylında "Session disconnected" qeydini yaza bilər. Belə bir mexanizm düşünülüb amma tam
 tətbiq edilməyib. - Bundan əlavə, Postgres query logları (əgər açıq qoyulubsa) logs/postgres.log kimi
 ayrıla bilər. Bizim Compose konfiqurasiyada Postgres logları default stdout-a gedir, onu ayrıca file-ə
@@ -1399,17 +1398,17 @@ connection qurur. Compose depends_on ilə Postgres-in tam hazır olmasını göz
 service_healthy sayəsində 105 . Bu, o deməkdir ki, Express container (bizim halda Express host-da gedir,
 ancaq PM2 start script-lə biz container-lərə asılılıq kontrolunu stack_doctor ilə edirik) Postgres hazır
 olmadan memory DB-ə qoşulmağa çalışsa alınmaz. Bizim start script-lərdə bunu nəzərə almışıq:
- stack_doctor.sh WAHA-nın /ping -ini yoxlayır, amma Postgres-i bir də PM2 startda ilk query-lə test
+ stack_doctor.sh WhatsApp gateway-nın /ping -ini yoxlayır, amma Postgres-i bir də PM2 startda ilk query-lə test
 edir. Ola bilər ilk bir neçə saniyə DB connection refuse olsun, modul catch edib 5s sonra yenidən cəhd edir.
 Bu cür robust-luq əlavə edilib.
 
 Qısaca loqlar haqqında nəticə: Loqların müntəzəm analizi vacibdir. Biz tövsiyə edirik ki, production-da
  pm2 logs əvəzinə mərkəzi log yığma istifadə olunsun (ELK stack kimi). Hal-hazırda system logs-lar text
 formatdadır, amma gələcəkdə JSON log formatına keçilə bilər ki, strukturlaşmış olsun. Hər bir cavab üçün
-logda unikal request ID verilir (Express middleware bunu əlavə edə bilər), bu ID həm WAHA event logunda,
+logda unikal request ID verilir (Express middleware bunu əlavə edə bilər), bu ID həm WhatsApp gateway event logunda,
 həm DB tool_audit-də də saxlanır. Bu imkan verir ki, bir user sorğusunun bütün chain-ni izləmək olsun. Bir
 request ID-nin Flow-u: - Express log: "Request 123 started from +994xx" - Orchestrator log: "Plan built for
-req 123: [tools...]" - WAHA log: "Sent message reply for req 123" - DB tool_audit: bir neçə entry (req_id=123,
+req 123: [tools...]" - WhatsApp gateway log: "Sent message reply for req 123" - DB tool_audit: bir neçə entry (req_id=123,
 tool=..., status=...).
 
 Bunlar tam olaraq implementasiya olunub demək çətindir, ancaq konseptual var. Texniki sənədləşmədə
@@ -1422,11 +1421,11 @@ bir sıra test ssenariləri və yardımçı vasitələr mövcuddur. Bunlardan ə
 API Endpoint Test Ssenariləri (CLI ilə): Layihə ilə birlikdə bir bash skripti hazırlanıb: test/api_test.sh .
 Bu skript bir neçə əmrli cURL sorğusunu ardıcıl icra edərək sistemin vacib funksiyalarını yoxlayır 106 .
 Məsələn, o: - /api/health endpoint-nə sorğu atıb cavab 200 OK gəldiyini yoxlayır. -
-/api/waha/status çağırıb oradan session state-in "CONNECTED" ya da "OPENING" olduğunu yoxlayır. -
-/api/waha/sendText metodunu test məqsədilə "echo" rejimində işlədir. Bunun üçün .env -də test
-parametrləri var: məsələn, TEST_WAHA_NUMBER mühit dəyişəni doldurulubsa, skript həmin nömrəyə test
-mesajı göndərir (adətən test nömrəsi öz nömrəmiz olur). Göndərdikdən sonra WAHA API-dən mesaj
-statusunu sorğulayır ki, çatdırılıbsa PASS, çatdırılmayıbsa FAIL kimi qeyd etsin. - Eyni qaydada /api/waha/
+/api/gateway/status çağırıb oradan session state-in "CONNECTED" ya da "OPENING" olduğunu yoxlayır. -
+/api/gateway/sendText metodunu test məqsədilə "echo" rejimində işlədir. Bunun üçün .env -də test
+parametrləri var: məsələn, TEST_WhatsApp gateway_NUMBER mühit dəyişəni doldurulubsa, skript həmin nömrəyə test
+mesajı göndərir (adətən test nömrəsi öz nömrəmiz olur). Göndərdikdən sonra WhatsApp gateway API-dən mesaj
+statusunu sorğulayır ki, çatdırılıbsa PASS, çatdırılmayıbsa FAIL kimi qeyd etsin. - Eyni qaydada /api/gateway/
 sendImage və digərlərini (voice, video) sınaqdan keçirə bilər. Skriptdə bunlar alias kimi definə edilib – yəni
 environment-də test fayl path-lərini göstərsək (məs: TEST_IMAGE_PATH=./docs/test.jpg ), skript onu
 göndərib cavabı yoxlayacaq.
@@ -1447,8 +1446,8 @@ görə bilərik. Əgər hər hansı testdə problem olsa, skript bunu [FAIL] kim
 hissəsini print edəcək.
 
 Self-Diagnostic Tools (Öz diaqnostika vasitələri): Sistem, tipik problem hallarını aşkarlayıb developerə
-ipucu vermək üçün bəzən öz daxilində yoxlamalar edir: - WAHA sessiyası tez-tez disconnect olursa (məsələn,
-WhatsApp Web mühitində stale session), Express bunu event-lərdən bilir və logda "WAHA Session
+ipucu vermək üçün bəzən öz daxilində yoxlamalar edir: - WhatsApp gateway sessiyası tez-tez disconnect olursa (məsələn,
+WhatsApp Web mühitində stale session), Express bunu event-lərdən bilir və logda "WhatsApp gateway Session
 disconnected, awaiting QR scan" kimi xəbərdarlıq verir. Bu işarədir ki, user telefonda WhatsApp-dan çıxıb,
 yenidən qoşulmaq lazımdır. - Groq API xətalarında (məs: Invalid API Key cavabı gələrsə), sistem loga
 tam həmin xətanı yazır və tövsiyə verir: "Check GROQ_API_KEYS in .env" 52 . - Açar limitinə yaxınlaşılanda
@@ -1456,29 +1455,29 @@ tam həmin xətanı yazır və tövsiyə verir: "Check GROQ_API_KEYS in .env" 52
 məlumat çıxır. Bu da devops-a deyir ki, bəlkə də daha çox açar əlavə etməlisən, ya da sorğuları azaltmalısan.
 - QR yüklənmir problemi: Bəzən developer brauzerdə http://localhost:9876/api/session/qr?
 format=image açır, amma QR görünmür. Bu halda troubleshooting tövsiyəsi README-də verilib:
-services/toolkit/wahaClient.js modulunun buffer qaytarmasını təsdiqləyin və brauzerin
-format=image query-sini istifadə etdiyinə əmin olun 107 . Yəni, birinci, Express WAHA-dan QR alarkən
+services/toolkit/gatewayClient.js modulunun buffer qaytarmasını təsdiqləyin və brauzerin
+format=image query-sini istifadə etdiyinə əmin olun 107 . Yəni, birinci, Express WhatsApp gateway-dan QR alarkən
 base64 stringi buffer-a çevirib Response-a Binary kimi göndərməli idi – əgər bunu etmirsə, düzəltmək
 lazımdır. İkinci, bəzən dev-lər sadəcə /api/session/qr açırdılar və Content-Type JSON olduğu üçün QR
 text kimi görünürdü. format=image demək vacibdir ki, doğru content-type gəlsin. - Webhook 404
-problemi: Bu, tipik konfiqurasiya səhvindən qaynaqlana bilər. WAHA containeri webhook-u vuranda Express
-onu qəbul edə bilmirsə, demək ki ya Express düşüb, ya WAHA konteyneri host-u resolve edə bilmir. Tövsiyə:
-WAHA konteynerinin içərisinə girib ping host.docker.internal yoxlamaq 107 . Linux-da
+problemi: Bu, tipik konfiqurasiya səhvindən qaynaqlana bilər. WhatsApp gateway containeri webhook-u vuranda Express
+onu qəbul edə bilmirsə, demək ki ya Express düşüb, ya WhatsApp gateway konteyneri host-u resolve edə bilmir. Tövsiyə:
+WhatsApp gateway konteynerinin içərisinə girib ping host.docker.internal yoxlamaq 107 . Linux-da
 host.docker.internal default olmaya bilər, o halda ya container-i elə run etmək lazımdır (bizim compose
 parametrlərində docker0 ip-sindən hostu tutdurmaq olar), ya da explicit IP vermək. Bizim .env-də
-WAHA_WEBHOOK_URL elə qoyulub ki, Docker Linux host-u tanısın. Bu problemlə qarşılaşan olarsa, logda
-"Webhook 404" görəcək və README-dəki həmin hissəni oxuyub düzəldəcək: WAHA_WEBHOOK_URL=http://
-<host_ip>:9876/api/webhooks/waha deyə. - 401 from WAHA (Unauthorized): Bu o deməkdir ki,
-Express WAHA-ya request atanda X-API-Key ya göndərməyib, ya da yanlışdır. Adətən ikinci hal –
-yəni .env-də WAHA_API_KEY bir cürdür, WAHA konteyneri başqa açarla başlayıb. Çarəsi: .env-dəki açarı
+WhatsApp gateway_WEBHOOK_URL elə qoyulub ki, Docker Linux host-u tanısın. Bu problemlə qarşılaşan olarsa, logda
+"Webhook 404" görəcək və README-dəki həmin hissəni oxuyub düzəldəcək: WhatsApp gateway_WEBHOOK_URL=http://
+<host_ip>:9876/api/webhooks/gateway deyə. - 401 from WhatsApp gateway (Unauthorized): Bu o deməkdir ki,
+Express WhatsApp gateway-ya request atanda X-API-Key ya göndərməyib, ya da yanlışdır. Adətən ikinci hal –
+yəni .env-də WhatsApp gateway_API_KEY bir cürdür, WhatsApp gateway konteyneri başqa açarla başlayıb. Çarəsi: .env-dəki açarı
 düzgünlüyünə bax, lazım gəlsə yenisi ilə dəyiş və pnpm run start ilə stack-i restart et 108 . Bizim start
-skript cümlə-cümlə environment-ləri WAHA-ya ötürür, o biri container-lərdən asılılıqlar ola bilər, ona görə
-düzgün sırada restart vacibdir. - WAHA unhealthy (konteyner durumu healthy= false): Bu hal, məsələn,
-WAHA Swagger parolunu dəyişib containeri restart etməməklə ortaya çıxa bilər. WAHA containeri
+skript cümlə-cümlə environment-ləri WhatsApp gateway-ya ötürür, o biri container-lərdən asılılıqlar ola bilər, ona görə
+düzgün sırada restart vacibdir. - WhatsApp gateway unhealthy (konteyner durumu healthy= false): Bu hal, məsələn,
+WhatsApp gateway Swagger parolunu dəyişib containeri restart etməməklə ortaya çıxa bilər. WhatsApp gateway containeri
 environment dəyişəni runtime-da dəyişmir; start param-ləri dəyişibsə konteyneri yenidən başlatmalısan ki,
-onları götürsün 109 . Məsələn, WAHA_DASHBOARD_PASSWORD dəyişdi, amma container hələ köhnə parolda
-qalıb. O zaman stack_doctor deyəcək "WAHA /ping unreachable" – həlli cd api && docker compose up
--d waha komutuyla yalnız WAHA servisini yenidən qaldırmaqdır. Sonra stack_doctor-u yenə işlətsək hər şey
+onları götürsün 109 . Məsələn, WhatsApp gateway_DASHBOARD_PASSWORD dəyişdi, amma container hələ köhnə parolda
+qalıb. O zaman stack_doctor deyəcək "WhatsApp gateway /ping unreachable" – həlli cd api && docker compose up
+-d gateway komutuyla yalnız WhatsApp gateway servisini yenidən qaldırmaqdır. Sonra stack_doctor-u yenə işlətsək hər şey
 ok olar. Biz tövsiyə edirik ki, belə hadisələri aşkar edəndə stack_doctor nəticələrini (oradakı error-ları) dev
 qrupunda paylaşasınız ki, problem tez aydın olsun 109 .
 
@@ -1487,8 +1486,8 @@ qrupunda paylaşasınız ki, problem tez aydın olsun 109 .
  Özünü diaqnostika nümunəsi: Tutaq ki, bot birdən mesajlara cavab verməyi dayandırıb. Developer self-
 diagnostic üçün belə gedə bilər: - curl localhost:9876/api/health – görək API ümumiyyətlə cavab
 verir? Əgər yoxdursa, demək Express serveri düşüb – pm2 restart lazım ola bilər. - API healthy gəlirsə,
-curl localhost:9876/api/waha/status – burada session state'i DISCONNECTED görərsə, demək
-bot WhatsApp-dan qopub. docker logs waha -da detach-lə bağlı bir log olar. Həll:
+curl localhost:9876/api/gateway/status – burada session state'i DISCONNECTED görərsə, demək
+bot WhatsApp-dan qopub. docker logs gateway -da detach-lə bağlı bir log olar. Həll:
 pnpm run start -- --qr edib yenidən qoşmaq. - Session state CONNECTED görünürsə, amma cavab
 gəlmirsə, demək ki problem AI tərəfindədir. Loglara baxmaq lazımdır: pm2 logs WABACore.AI . Orada
 bəlkə error stacktrace var – məsələn, "Groq API error 401". Bu halda 401 izahatını (yuxarıda) tətbiq edirik. -
@@ -1527,15 +1526,15 @@ dokumentasiyasında (README) bu testlərin bəzi nümunələri də göstərilmi�
 yaza bilsin 106 . Unutmayaq ki, hər bir yeniliyin inteqrasiyasından sonra da test ssenarilərini yenidən
 işlətmək lazımdır ki, geriyə uyğunluq (regression) pozulmasın.
 
-Self-check maddələri (qısa): - WAHA /ping – cavab ok? (Stack Doctor yoxlayır) - Webhook connectivity –
-WAHA container-dən Express host ping ok? (Stack Doctor yoxlayır) - Groq API keyləri – test request at, 200
+Self-check maddələri (qısa): - WhatsApp gateway /ping – cavab ok? (Stack Doctor yoxlayır) - Webhook connectivity –
+WhatsApp gateway container-dən Express host ping ok? (Stack Doctor yoxlayır) - Groq API keyləri – test request at, 200
 qayıdırmı? - Database migrasiya – SELECT count(*) FROM contacts; sorğusu işləyir? (ilk run-da 0
 dönməlidir, demək ki table var) - Memory fallback – Postgres-i söndür, sistem JSON modunda hələ çalışır?
 
 	፨	፨	፨	( 32 )	፨	፨	፨	
 
  (logda "[WARN] Memory DB not found, using JSON store" kimi çıxmalıdır) - Clean exit – pm2 stop
-WABACore.AI dedikdə container-lər də dayanırmı? (WAHA konteyner detach olur, Express daha webhook
+WABACore.AI dedikdə container-lər də dayanırmı? (WhatsApp gateway konteyner detach olur, Express daha webhook
 qəbul etmir və s.)
 
 Bu cür self-diagnostic checklist-lər operativ sənəddə (operational manual) də yer alacaq. Texniki
@@ -1577,11 +1576,11 @@ file://file_00000000254871f4baa35c405242e0bb
 
 
 ## 2025-11-24 – Operativ qeydlər
-- Saat 19:20-19:55 intervalında real WhatsApp hesabı ilə `default` sessiyası qoşuldu; `status:"WORKING"` təsdiqləndi (curl + WAHA engine state `CONNECTED`).
+- Saat 19:20-19:55 intervalında real WhatsApp hesabı ilə `default` sessiyası qoşuldu; `status:"WORKING"` təsdiqləndi (curl + WhatsApp gateway engine state `CONNECTED`).
 - `pnpm run test:stack-doctor`, `test:endpoints`, `test:buffers` icra edildi; nəticələr `logs/metrics/` altına arxivləndi.
 - Endpoint testində 404/500 cavabları qeydə alındı (status/paylaşım/proxy sorğuları) – araşdırma üçün `logs/metrics/endpoints_failures.csv` yaradıldı.
 - PM2 loglarında təkrarlanan `EADDRINUSE` və `x-signature` xəbərdarlıqları müşahidə edildi; HMAC imza mexanizmi üçün düzəliş planı hazırlanmalıdır.
 - Groq manual testləri və canlı WhatsApp dialoqları üçün runbook faylları (`docs/runbooks/...`) yaradıldı, icra növbəsində saxlanılır.
-- 2025-11-25 00:20+: WAHA üzerinden LID identifikatorlu çatlara (43362426036278@lid, 49607526621408@lid) mətn və lokasiya testləri uğurla icra olundu; nəticələr runbook-a əlavə edildi.
+- 2025-11-25 00:20+: WhatsApp gateway üzerinden LID identifikatorlu çatlara (43362426036278@lid, 49607526621408@lid) mətn və lokasiya testləri uğurla icra olundu; nəticələr runbook-a əlavə edildi.
 - Şəkil/poll göndərişləri WEBJS Free mühərrikində məhdudlaşdırılıb (422/501). Label və block əmrləri cavab versə də faktiki dəyişiklik etmir; qrup yaradılması 500 qaytarır (Puppeteer `createGroup` istisnası).
-- 2025-11-25 01:41: whatsapp-web.js fallback aktivləşdirildi; QR kodu `tmp/wwebjs-qr.png` faylında saxlanılır və ascii versiyası `tmp/wwebjs-qr.txt` altında mövcuddur. Fallback hazır olduqda WAHA Plus məhdudiyyətləri olmadan media/poll üçün alternativ ssenarilər icra ediləcə
+- 2025-11-25 01:41: whatsapp-web.js fallback aktivləşdirildi; QR kodu `tmp/wwebjs-qr.png` faylında saxlanılır və ascii versiyası `tmp/wwebjs-qr.txt` altında mövcuddur. Fallback hazır olduqda WhatsApp gateway Plus məhdudiyyətləri olmadan media/poll üçün alternativ ssenarilər icra ediləcə

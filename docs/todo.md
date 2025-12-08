@@ -3,15 +3,16 @@
 > _Son yoxlamanın tarixi:_ **01 December 2025**
 
 ## 🔁 Realtime Workflow Vizualizasiya
-- [ ] Backend agent pipeline mərhələləri üçün strukturlu “event” çıxışı hazırlamaq (`buffer`, `intent`, `persona`, `tools`, `response`, `send`)
-  - [ ] Hər event üçün payload (chatId, persona, model, sürə, nəticə) tərtib et
-  - [ ] Eventləri SSE/WebSocket yayıncısına ötürmək üçün servis (Node EventEmitter + Redis pub/sub?)
-- [ ] Dashboard-da “Flow Canvas” səhifəsi (React Flow və ya oxşarı)
-  - [ ] Node/edge sxemi: giriş → niyyət → persona → alətlər → cavab
-  - [ ] Real-time işıqlandırma/animasiya (event gələndə node highlight/glow)
-  - [ ] Qısa input/output snippet-ləri və status badge (success/fail)
-  - [ ] Mobil görünüş üçün sadələşdirilmiş timeline fallback
-- [ ] Event replay / tarixçə paneli (son N mesaj üçün təkrar izləmə)
+- [x] Backend agent pipeline mərhələləri üçün strukturlu telemetriya çıxışı (`buffer`, `intent`, `persona`, `tools`, `response`, `send`)
+  - [x] Event payloadları (chatId, persona, model, müddət, status, meta)
+  - [x] EventBus + Redis Stream persistensiyası (`telemetry:events`, max ~500 event)
+  - [x] SSE `/telemetry/stream` endpointi + `/telemetry/history` JSON
+- [x] Dashboard-da minimal “Flow Canvas” səhifəsi (`/telemetry`)
+  - [x] Stage node/edge sxemi: giriş → intent → persona → tools → response → send
+  - [x] Canlı highlight və status badge-lər (success/error/idle)
+  - [x] Məlumat kartları (persona/model, müddət) + 100 event-lik log cədvəli
+  - [ ] Mobil üçün optimallaşdırılmış timeline görünüşü
+- [ ] Event replay / tarixçə paneli (son N söhbətin step-by-step təkrarı)
 
 ## 💵 Token & Qiymət Telemetriya
 - [ ] OpenAI + Groq cavablarında `usage` metriklərini yakalamaq (input/output tokens)

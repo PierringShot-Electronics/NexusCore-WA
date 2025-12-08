@@ -67,7 +67,7 @@ export class ContextManager {
     );
   }
 
-  public async getRecentMessages(chatId: string, limit = 10): Promise<PersistedMessage[]> {
+  public async getRecentMessages(chatId: string, limit = 30): Promise<PersistedMessage[]> {
     const result = await postgresPool.query<PersistedMessage>(
       `SELECT id,
               role,

@@ -39,7 +39,7 @@ const ENV_METADATA: EnvVariableMetadata[] = [
   {
     key: 'OPENAI_MODEL',
     label: 'OpenAI Default Model',
-    description: 'Primary text/agent model (default gpt-5.1).'
+    description: 'Primary text/agent model (default gpt-4o-mini).'
   },
   {
     key: 'OPENAI_VISION_MODEL',
@@ -49,7 +49,7 @@ const ENV_METADATA: EnvVariableMetadata[] = [
   {
     key: 'OPENAI_TRANSCRIPTION_MODEL',
     label: 'OpenAI Transcription Model',
-    description: 'Audio-to-text transcription engine (default gpt-4o-mini-transcribe).'
+    description: 'Audio-to-text transcription engine (default whisper-1).'
   },
   {
     key: 'OPENAI_EMBEDDING_MODEL',
@@ -59,12 +59,12 @@ const ENV_METADATA: EnvVariableMetadata[] = [
   {
     key: 'OPENAI_ROUTER_MODEL',
     label: 'OpenAI Router Model',
-    description: 'Lightweight model for intent routing (default gpt-5-nano).'
+    description: 'Lightweight model for intent routing (default gpt-4o-mini).'
   },
   {
     key: 'OPENAI_TTS_MODEL',
     label: 'OpenAI TTS Model',
-    description: 'Text-to-speech model identifier (məs: gpt-4o-mini-tts).'
+    description: 'Text-to-speech model identifier (məs: tts-1).'
   },
   {
     key: 'OPENAI_TTS_VOICE',
@@ -100,17 +100,17 @@ const ENV_METADATA: EnvVariableMetadata[] = [
   {
     key: 'AGENT_MODEL_GENERAL',
     label: 'Agent Model – General',
-    description: 'Ümumi dialoq üçün baza modeli (default gpt-5.1).'
+    description: 'Ümumi dialoq üçün baza modeli (default gpt-4o-mini).'
   },
   {
     key: 'AGENT_MODEL_SALES',
     label: 'Agent Model – Sales',
-    description: 'Satış/persona cavabları üçün model (default gpt-5-mini).'
+    description: 'Satış/persona cavabları üçün model (default gpt-4o).'
   },
   {
     key: 'AGENT_MODEL_SUPPORT',
     label: 'Agent Model – Support',
-    description: 'Şikayət/ dəstək cavabları üçün model (default gpt-4.1-mini).'
+    description: 'Şikayət/ dəstək cavabları üçün model (default gpt-4o-mini).'
   },
   {
     key: 'AGENT_MODEL_DIAGNOSTICS',
@@ -118,30 +118,14 @@ const ENV_METADATA: EnvVariableMetadata[] = [
     description: 'Multimodal texniki diaqnostika üçün model (default gpt-4o).'
   },
   {
-    key: 'WAHA_BASE_URL',
-    label: 'WAHA Base URL',
-    description: 'Base URL for WAHA instance (e.g. http://waha:3000).'
+    key: 'WHATSAPP_GATEWAY_BASE_URL',
+    label: 'WhatsApp Gateway Base URL',
+    description: 'Base URL for the in-house WhatsApp gateway (e.g. http://wweb:3001).'
   },
   {
-    key: 'WAHA_API_KEY',
-    label: 'WAHA API Key',
-    description: 'Secure key for WAHA HTTP APIs.',
-    secret: true
-  },
-  {
-    key: 'WAHA_SESSION',
-    label: 'WAHA Session Identifier',
-    description: 'Session name used for WhatsApp automation.'
-  },
-  {
-    key: 'WAHA_WEBHOOK_URL',
-    label: 'WAHA Webhook URL',
-    description: 'Webhook endpoint WAHA calls for message events.'
-  },
-  {
-    key: 'WAHA_WEBHOOK_EVENTS',
-    label: 'WAHA Webhook Events',
-    description: 'Comma separated event list subscribed from WAHA.'
+    key: 'WHATSAPP_GATEWAY_SESSION',
+    label: 'WhatsApp Gateway Session',
+    description: 'Session identifier for WhatsApp Web authentication.'
   },
   {
     key: 'BUFFER_TIMEOUT_MS',

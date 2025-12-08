@@ -32,31 +32,50 @@ Mətn verilir. JSON formatında cavab ver:
 Mətn: """${message}"""`.trim();
 
   const providers: Array<() => Promise<string | null>> = [];
-  const openAiRouterModel = env.OPENAI_ROUTER_MODEL || env.OPENAI_MODEL;
+  const openAiRouterModels = Array.from(
+    new Set(
+      [env.OPENAI_ROUTER_MODEL, env.OPENAI_MODEL, 'gpt-4o-mini', 'gpt-4o'].filter(
+        (value): value is string => typeof value === 'string' && value.trim().length > 0
+      )
+    )
+  );
 
   if (hasOpenAI && openaiClient) {
     const client = openaiClient;
     providers.push(async () => {
       try {
-        const completion = await client.responses.create({
-          model: openAiRouterModel,
-          input: [
-            {
-              role: 'system',
-              content: 'Yalnız JSON obyektini qaytar.'
-            },
-            {
-              role: 'user',
-              content: prompt
-            }
-          ],
-          temperature: 0
-        });
-        const text = completion.output_text ?? '{}';
-        logger.debug('Intent classified via OpenAI model.');
-        return text;
+        for (const model of openAiRouterModels) {
+          try {
+            const completion = await client.responses.create({
+              model,
+              input: [
+                {
+                  role: 'system',
+                  content: 'Yalnız JSON obyektini qaytar.'
+                },
+                {
+                  role: 'user',
+                  content: prompt
+                }
+              ],
+              temperature: 0
+            });
+            const text = completion.output_text ?? '{}';
+            logger.debug({ model }, 'Intent classified via OpenAI model.');
+            return text;
+          } catch (modelError) {
+            logger.warn(
+              { err: modelError, model },
+              'OpenAI intent classification attempt failed; trying next candidate.'
+            );
+          }
+        }
+        return null;
       } catch (error) {
-        logger.warn({ err: error }, 'OpenAI intent classification failed, trying fallback provider.');
+        logger.warn(
+          { err: error },
+          'OpenAI intent classification failed, trying fallback provider.'
+        );
         return null;
       }
     });

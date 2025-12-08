@@ -1,29 +1,10 @@
 import { randomUUID } from 'crypto';
 import { BufferedMessagePayload, BufferedMessageType } from './smartBuffer';
 
-export interface WahaWebhookRequest {
+export interface GatewayWebhookEnvelope {
   event?: string;
   payload?: Record<string, unknown>;
-  messages?: Array<{
-    id: string;
-    from: string;
-    type: string;
-    timestamp?: string;
-    text?: { body: string };
-    audio?: { url: string; mime_type?: string };
-    voice?: { url: string; mime_type?: string };
-    image?: { url: string; mime_type?: string };
-    video?: { url: string; mime_type?: string };
-    document?: { url: string; mime_type?: string; filename?: string };
-    caption?: string;
-    status?: string;
-    [key: string]: unknown;
-  }>;
-  contacts?: Array<{
-    wa_id: string;
-    profile?: { name?: string };
-  }>;
-  [key: string]: unknown;
+  timestamp?: number;
 }
 
 export interface ParsedIncomingMessage {
@@ -31,102 +12,65 @@ export interface ParsedIncomingMessage {
   message: BufferedMessagePayload;
 }
 
-export function parseWahaWebhookBody(
-  body: unknown
-): ParsedIncomingMessage | null {
+export function parseGatewayWebhookBody(body: unknown): ParsedIncomingMessage | null {
   if (!body || typeof body !== 'object') {
     return null;
   }
 
-  const payload = body as WahaWebhookRequest;
-  const messageObject = extractMessageObject(payload);
+  const envelope = body as GatewayWebhookEnvelope;
+  const messageObject = extractMessageObject(envelope);
 
   if (!messageObject) {
     return null;
   }
 
-  const chatId =
-    (typeof messageObject.from === 'string' && messageObject.from) ||
-    (typeof messageObject.chatId === 'string' && messageObject.chatId);
+  const fromField = typeof messageObject.from === 'string' ? messageObject.from : undefined;
+  const chatField =
+    typeof messageObject.chatId === 'string' ? messageObject.chatId : undefined;
+
+  const chatId = chatField ?? fromField;
 
   if (!chatId) {
     return null;
   }
 
-  const type = mapMessageType(
-    typeof messageObject.type === 'string'
-      ? messageObject.type
-      : typeof messageObject._data === 'object' &&
-          messageObject._data !== null &&
-          typeof (messageObject._data as Record<string, unknown>).type ===
-            'string'
-        ? String((messageObject._data as Record<string, unknown>).type)
-        : undefined
-  );
+  const type = mapMessageType(typeof messageObject.type === 'string' ? messageObject.type : undefined);
 
   const timestampValue =
     typeof messageObject.timestamp === 'number'
       ? messageObject.timestamp
       : typeof messageObject.timestamp === 'string'
         ? Number(messageObject.timestamp)
-        : null;
+        : typeof envelope.timestamp === 'number'
+          ? envelope.timestamp
+          : null;
 
-  let receivedAtMs: number;
-  if (timestampValue && !Number.isNaN(timestampValue)) {
-    receivedAtMs = timestampValue * 1000;
-  } else {
-    receivedAtMs = Date.now();
-  }
+  const receivedAtMs =
+    timestampValue && !Number.isNaN(timestampValue) ? timestampValue * 1000 : Date.now();
+
+  const textBody =
+    typeof messageObject.body === 'string'
+      ? messageObject.body
+      : typeof messageObject.text === 'string'
+        ? messageObject.text
+        : typeof messageObject.caption === 'string'
+          ? messageObject.caption
+          : undefined;
 
   const message: BufferedMessagePayload = {
     id:
-      (typeof messageObject.id === 'string' && messageObject.id) ??
-      (typeof messageObject._data === 'object' &&
-      messageObject._data !== null &&
-      typeof (messageObject._data as Record<string, any>).id === 'object' &&
-      (messageObject._data as Record<string, any>).id
-        ? String(
-            (messageObject._data as Record<string, any>).id._serialized ??
-              (messageObject._data as Record<string, any>).id.id ??
-              ''
-          )
-        : undefined) ??
+      (typeof messageObject.id === 'string' ? messageObject.id : undefined) ??
+      (typeof messageObject.messageId === 'string' ? messageObject.messageId : undefined) ??
       randomUUID(),
     type,
-    text:
-      (typeof messageObject.text?.body === 'string' && messageObject.text.body) ??
-      (typeof messageObject.body === 'string' && messageObject.body),
-    audioUrl:
-      messageObject.audio?.url ??
-      messageObject.voice?.url ??
-      (typeof messageObject.audioUrl === 'string'
-        ? messageObject.audioUrl
-        : undefined),
-    imageUrl:
-      messageObject.image?.url ??
-      (typeof messageObject.imageUrl === 'string'
-        ? messageObject.imageUrl
-        : undefined),
-    videoUrl:
-      messageObject.video?.url ??
-      (typeof messageObject.videoUrl === 'string'
-        ? messageObject.videoUrl
-        : undefined),
+    text: textBody,
+    audioUrl: typeof messageObject.audioUrl === 'string' ? messageObject.audioUrl : undefined,
+    imageUrl: typeof messageObject.imageUrl === 'string' ? messageObject.imageUrl : undefined,
+    videoUrl: typeof messageObject.videoUrl === 'string' ? messageObject.videoUrl : undefined,
     documentUrl:
-      messageObject.document?.url ??
-      (typeof messageObject.documentUrl === 'string'
-        ? messageObject.documentUrl
-        : undefined),
-    mimeType:
-      messageObject.audio?.mime_type ??
-      messageObject.voice?.mime_type ??
-      messageObject.image?.mime_type ??
-      messageObject.video?.mime_type ??
-      messageObject.document?.mime_type,
-    caption:
-      typeof messageObject.caption === 'string'
-        ? messageObject.caption
-        : undefined,
+      typeof messageObject.documentUrl === 'string' ? messageObject.documentUrl : undefined,
+    mimeType: typeof messageObject.mimetype === 'string' ? messageObject.mimetype : undefined,
+    caption: typeof messageObject.caption === 'string' ? messageObject.caption : undefined,
     raw: messageObject,
     receivedAt: new Date(receivedAtMs).toISOString()
   };
@@ -134,18 +78,13 @@ export function parseWahaWebhookBody(
   return { chatId, message };
 }
 
-function extractMessageObject(payload: WahaWebhookRequest): any | null {
-  if (Array.isArray(payload.messages) && payload.messages.length > 0) {
-    return payload.messages[0];
+function extractMessageObject(envelope: GatewayWebhookEnvelope): Record<string, unknown> | null {
+  if (!envelope.event || typeof envelope.event !== 'string') {
+    return null;
   }
 
-  if (
-    payload.event &&
-    payload.event.startsWith('message') &&
-    payload.payload &&
-    typeof payload.payload === 'object'
-  ) {
-    return payload.payload;
+  if (envelope.event.startsWith('message') && envelope.payload && typeof envelope.payload === 'object') {
+    return envelope.payload;
   }
 
   return null;
@@ -156,10 +95,10 @@ function mapMessageType(type?: string): BufferedMessageType {
     return 'unknown';
   }
 
-  switch (type) {
+  switch (type.toLowerCase()) {
     case 'chat':
     case 'conversation':
-    case 'extendedTextMessage':
+    case 'extendedtextmessage':
     case 'text':
       return 'text';
     case 'audio':

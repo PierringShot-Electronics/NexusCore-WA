@@ -13,47 +13,28 @@ const EnvironmentSchema = z
       .transform((value) => Number(value)),
     DATABASE_URL: z.string().url(),
     REDIS_URL: z.string().url(),
-    WAHA_BASE_URL: z.string().url().default('http://waha:3000'),
-    WAHA_API_KEY: z
+    WHATSAPP_GATEWAY_BASE_URL: z
       .string()
-      .superRefine((value, ctx) => {
-        const trimmed = value.trim();
-        if (trimmed.length < 16) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: 'WAHA_API_KEY must be at least 16 characters'
-          });
-        }
-        if (trimmed === 'admin') {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: 'WAHA_API_KEY cannot be "admin"; please set a secure key'
-          });
-        }
-      })
-      .transform((value) => value.trim()),
-    WAHA_SESSION: z.string().default('default'),
-    WAHA_WEBHOOK_URL: z.string().url().default('http://app:3000/webhook'),
-    WAHA_WEBHOOK_EVENTS: z
-      .string()
-      .default('message,session.status'),
+      .url()
+      .default('http://wweb:3001'),
+    WHATSAPP_GATEWAY_SESSION: z.string().default('default'),
     MCP_PORT: z.string().default('3030'),
     OPENAI_API_KEY: z.string().optional(),
-    OPENAI_MODEL: z.string().default('gpt-5.1'),
+    OPENAI_MODEL: z.string().default('gpt-4o-mini'),
     OPENAI_VISION_MODEL: z.string().default('gpt-4o'),
-    OPENAI_TRANSCRIPTION_MODEL: z.string().default('gpt-4o-mini-transcribe'),
+    OPENAI_TRANSCRIPTION_MODEL: z.string().default('whisper-1'),
     OPENAI_EMBEDDING_MODEL: z.string().default('text-embedding-3-small'),
-    OPENAI_TTS_MODEL: z.string().default('gpt-4o-mini-tts'),
+    OPENAI_TTS_MODEL: z.string().default('tts-1'),
     OPENAI_TTS_VOICE: z.string().default('alloy'),
-    OPENAI_ROUTER_MODEL: z.string().default('gpt-5-nano'),
+    OPENAI_ROUTER_MODEL: z.string().default('gpt-4o-mini'),
     GROQ_API_KEY: z.string().optional(),
     GROQ_ROUTER_MODEL: z.string().default('llama-3.1-8b-instant'),
     GROQ_COMPLETION_MODEL: z.string().default('llama-3.1-70b-versatile'),
     GROQ_VISION_MODEL: z.string().default('llama-3.2-11b-vision-preview'),
     GROQ_TRANSCRIPTION_MODEL: z.string().default('whisper-large-v3-turbo'),
-    AGENT_MODEL_GENERAL: z.string().default('gpt-5.1'),
-    AGENT_MODEL_SALES: z.string().default('gpt-5-mini'),
-    AGENT_MODEL_SUPPORT: z.string().default('gpt-4.1-mini'),
+    AGENT_MODEL_GENERAL: z.string().default('gpt-4o-mini'),
+    AGENT_MODEL_SALES: z.string().default('gpt-4o'),
+    AGENT_MODEL_SUPPORT: z.string().default('gpt-4o-mini'),
     AGENT_MODEL_DIAGNOSTICS: z.string().default('gpt-4o'),
     SESSION_SECRET: z.string().default('change-me'),
     BUFFER_TIMEOUT_MS: z
@@ -67,7 +48,26 @@ const EnvironmentSchema = z
       .string()
       .default(path.join(process.cwd(), 'data', 'biznes.md')),
     TOOL_TAPAZ_BASE_URL: z.string().default('https://tap.az/s'),
-    DEFAULT_LOCALE: z.string().default('az-AZ')
+    DEFAULT_LOCALE: z.string().default('az-AZ'),
+    TELEMETRY_ENABLED: z
+      .string()
+      .optional()
+      .transform((value) => (value ? value.toLowerCase() !== 'false' : true)),
+    TELEMETRY_REDIS_STREAM: z.string().default('telemetry:events'),
+    TELEMETRY_STREAM_MAX_LENGTH: z
+      .string()
+      .optional()
+      .transform((value) => (value ? Number(value) : 500))
+      .refine((value) => value > 0, {
+        message: 'TELEMETRY_STREAM_MAX_LENGTH must be greater than 0'
+      }),
+    TELEMETRY_HISTORY_LIMIT: z
+      .string()
+      .optional()
+      .transform((value) => (value ? Number(value) : 200))
+      .refine((value) => value > 0, {
+        message: 'TELEMETRY_HISTORY_LIMIT must be greater than 0'
+      })
   });
 
 export type AppEnvironment = z.infer<typeof EnvironmentSchema>;

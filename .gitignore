@@ -33,6 +33,7 @@ logs/
 logs/*.png
 logs/*.json
 data/waha/
+data/whatsapp-gateway/
 agent_runs/
 
 # ------------------------------
@@ -40,6 +41,7 @@ agent_runs/
 # ------------------------------
 /docker-compose.override.yml
 exporter.sh
+scripts/exporter.sh
 
 # ------------------------------
 # OS / editor artefacts
@@ -47,3 +49,6 @@ exporter.sh
 .DS_Store
 Thumbs.db
 agent_run/
+.env_old.bak
+
+data/whatsapp-gateway/session/*

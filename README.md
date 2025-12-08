@@ -6,7 +6,7 @@
 ![Redis](https://img.shields.io/badge/Redis-7--alpine-DC382D?logo=redis&logoColor=white)
 ![Docker Compose](https://img.shields.io/badge/Docker%20Compose-ready-2496ED?logo=docker&logoColor=white)
 
-> **TL;DR**: WAHA + Express/TypeScript + PostgreSQL(pgvector) + Redis üzərində qurulan, OpenAI GPT-4o modelləri (Groq fallback-ları ilə) əsaslı multimodal satış və servis avtomatlaşdırma ekosistemi.
+> **TL;DR**: WWeb.js WhatsApp gateway + Express/TypeScript + PostgreSQL(pgvector) + Redis üzərində qurulan, OpenAI GPT-4o modelləri (Groq fallback-ları ilə) əsaslı multimodal satış və servis avtomatlaşdırma ekosistemi.
 
 ![NexusCore-WA Preview](https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExYnZybmRpeTduZDZkMjlzYzZnNXhjeTVzOXMwNTU3Z2h1NHRnNjBpZCZlcD12MV9naWZzX3NlYXJjaCZjdD1n/3o85xkPOu65qCIc3nq/giphy.gif)
 
@@ -20,7 +20,7 @@
 docker-compose.yml
  ├─ postgres (pgvector + pgcrypto)
  ├─ redis (smart buffer & rate limit)
- ├─ waha (WhatsApp HTTP API gateway)
+ ├─ wweb (WhatsApp gateway powered by whatsapp-web.js)
  ├─ app (Express + Agent + Tooling)
  └─ dashboard (Next.js operator UI)
 ```
@@ -41,8 +41,7 @@ docker-compose.yml
     - `OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_VISION_MODEL`, `OPENAI_TRANSCRIPTION_MODEL`,
       `OPENAI_EMBEDDING_MODEL`, `OPENAI_TTS_MODEL`, `OPENAI_TTS_VOICE`
     - (opsional) `GROQ_API_KEY`, `GROQ_ROUTER_MODEL`, `GROQ_COMPLETION_MODEL`, `GROQ_VISION_MODEL`, `GROQ_TRANSCRIPTION_MODEL`
-    - `WAHA_API_KEY`, `WAHA_DASHBOARD_USERNAME`/`WAHA_DASHBOARD_PASSWORD`
-    - `WHATSAPP_SWAGGER_USERNAME`/`WHATSAPP_SWAGGER_PASSWORD`
+    - WhatsApp gateway: `WHATSAPP_GATEWAY_SESSION`, `WHATSAPP_GATEWAY_PORT`, `WHATSAPP_GATEWAY_BASE_URL`, `WHATSAPP_GATEWAY_HOST_URL`
     - Agent modelləri: `AGENT_MODEL_GENERAL`, `AGENT_MODEL_SALES`, `AGENT_MODEL_SUPPORT`, `AGENT_MODEL_DIAGNOSTICS`
    - Güclü şifrələr üçün `openssl rand -hex 32` və ya `openssl rand -base64 24` istifadə edin.
 
@@ -58,7 +57,7 @@ docker-compose.yml
    ```
    - Backend: `http://localhost:3000/healthz`  
    - Dashboard: `http://localhost:3002`  
-   - WAHA: `http://localhost:3001` (QR kodu dashboard `Admin → Session` panelində və ya `scripts/waha_session.sh` ilə)
+   - WhatsApp gateway: `http://localhost:3001` (QR kodu dashboard `Admin → Session` panelində və ya `scripts/whatsapp_gateway_session.sh` ilə)
 
 4. **Məlumat Yüklənməsi (Opsional, məsləhətdir)**  
    ```bash
@@ -71,11 +70,14 @@ docker-compose.yml
    bash scripts/smoke_test.sh
    python scripts/test_endpoints.py
    ```
-   WAHA bağlantısı, backend sağlamlığı və Postgres əlaqəsini yoxlayır.
+   WhatsApp gateway bağlantısı, backend sağlamlığı və Postgres əlaqəsini yoxlayır.
    Collation mismatch xəbərdarlıqları görsəniz `bash scripts/postgres_refresh_collation.sh` icra edin.
+   - **Qeyd:** Əgər media/typing sınaqları `Gateway session not ready` səbəbi ilə SKIP markerləri göstərirsə,
+     `bash scripts/whatsapp_gateway_session.sh` və ya `GET /api/default/auth/qr` cavabındakı QR kodunu
+     skan edib cihazı qoşun; sessiya `WORKING` vəziyyətinə keçdikdən sonra bütün sınaqlar 201 cavabla tamamlanacaq.
 
 ## Multimodal Prosessinq
-- **Səs mesajları:** WAHA-dan gələn audio/PTT faylları avtomatik endirilir və OpenAI `OPENAI_TRANSCRIPTION_MODEL` (default `gpt-4o-mini-transcribe`) ilə transkripsiya olunur; OpenAI əlçatan olmazsa Groq `GROQ_TRANSCRIPTION_MODEL` fallback kimi çağırılır. Nəticə kontekstə `[Səs mesajı] ...` prefiksi ilə əlavə olunur.
+- **Səs mesajları:** WhatsApp gateway-dən gələn audio/PTT faylları avtomatik endirilir və OpenAI `OPENAI_TRANSCRIPTION_MODEL` (default `gpt-4o-mini-transcribe`) ilə transkripsiya olunur; OpenAI əlçatan olmazsa Groq `GROQ_TRANSCRIPTION_MODEL` fallback kimi çağırılır. Nəticə kontekstə `[Səs mesajı] ...` prefiksi ilə əlavə olunur.
 - **Şəkil / Video:** Vision analizi üçün `OPENAI_VISION_MODEL` (default GPT‑4o) çalışır; OpenAI əlçatan deyilsə `GROQ_VISION_MODEL` fallback edilir. Video mesajları və sənədlər üçün link + caption qeydləri yaradılır ki, operatorlar və LLM eyni məlumatı görsün.
 - **Sənədlər:** PDF və digər faylların linkləri cavaba əlavə olunur, mətnə çevrilmə tələb olunarsa növbəti iterasiyada genişləndirilə bilər.
 
@@ -86,7 +88,7 @@ cd backend
 npm install
 npm run dev
 
-# MCP server (WAHA ↔ OpenAI inteqrasiyası)
+# MCP server (WhatsApp gateway ↔ OpenAI inteqrasiyası)
 npm run mcp:dev  # http://localhost:3030/mcp üzərindən MCP müştərilərinə açılır
 
 # Dashboard inkişaf rejimi
@@ -106,9 +108,10 @@ npm run dev
 
 ## Təhlükəsizlik & Konfiqurasiya
 - `.env` paylaşıla bilməz; yalnız `.env.example` commit olunur.
-- WAHA və OpenAI açarlarını CI və ya gizli menecerlərdə saxlayın. `WAHA_API_KEY` və WAHA dashboard/swagger hesablarını default dəyərlərdə saxlamayın; dəyişiklikdən sonra `sudo bash scripts/start_clean.sh && bash scripts/waha_session.sh`.
+- WhatsApp gateway sessiya fayllarını və OpenAI açarlarını CI və ya gizli menecerlərdə saxlayın. Sessiyanın yenilənməsi üçün `sudo bash scripts/start_clean.sh && bash scripts/whatsapp_gateway_session.sh`.
 - Şübhəli mesajlarda `STOP` komandasını və dashboard “Takeover” funksiyasını istifadə edin.
 - MCP server (`backend/src/mcp/server.ts`) yalnız daxili şəbəkədə açıq saxlayın və `X-Api-Key` header-i tələb edən reverse proxy arxasında yerləşdirin.
+- Hal-hazırda label və presence API-ləri gateway-də dəstəklənmir; HTTP cavabları 422/501 ilə məhdudlaşdırılıb (test skripti avtomatik SKIP edir).
 
 ## Git & Yayım Qaydası
 - Commit mesajları: _əmr forması_ (`Add Redis smart buffer service`).

@@ -6,11 +6,13 @@ import { connectRedis, disconnectRedis, redis } from './db/redis';
 import { SmartBuffer } from './services/buffer/smartBuffer';
 import { agentService } from './services/agent/agentService';
 import { logger } from './utils/logger';
-import { wahaClient } from './services/agent/wahaClient';
+import { whatsappGatewayClient } from './services/agent/whatsappGatewayClient';
+import { registerTelemetryStorage } from './services/telemetry/storage';
 
 async function bootstrap(): Promise<void> {
   await connectPostgres();
   await connectRedis();
+  registerTelemetryStorage();
 
   const buffer = new SmartBuffer({
     redisClient: redis,
@@ -34,8 +36,8 @@ async function bootstrap(): Promise<void> {
   });
 
   setTimeout(() => {
-    wahaClient.ensureWebhookSubscription().catch((error) => {
-      logger.error({ err: error }, 'Failed to configure WAHA webhook subscription');
+    whatsappGatewayClient.ensureWebhookSubscription().catch((error) => {
+      logger.error({ err: error }, 'Failed to configure WhatsApp gateway webhook subscription');
     });
   }, 5000);
 

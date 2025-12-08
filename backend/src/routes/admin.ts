@@ -2,7 +2,7 @@ import type { Request, Response } from 'express';
 import { Router } from 'express';
 import { z } from 'zod';
 import { getLogHistory, subscribeLogs } from '../utils/logStream';
-import { wahaClient } from '../services/agent/wahaClient';
+import { whatsappGatewayClient } from '../services/agent/whatsappGatewayClient';
 import { env } from '../config/env';
 import {
   getAgentConfig,
@@ -24,13 +24,13 @@ export function createAdminRouter(): Router {
   const router = Router();
 
   router.get('/status', async (_req, res) => {
-    const session = await wahaClient.getSessionStatus();
+    const session = await whatsappGatewayClient.getSessionStatus();
     res.json({
       backend: { status: 'ok', time: new Date().toISOString() },
-      waha: session,
+      whatsappGateway: session,
       env: {
         appPort: env.APP_PORT,
-        wahaSession: env.WAHA_SESSION
+        whatsappSession: env.WHATSAPP_GATEWAY_SESSION
       }
     });
   });
@@ -59,7 +59,7 @@ export function createAdminRouter(): Router {
   });
 
   router.get('/qr', async (_req, res) => {
-    const session = await wahaClient.getSessionStatus();
+    const session = await whatsappGatewayClient.getSessionStatus();
 
     if (!session) {
       return res.status(503).json({ error: 'status_unavailable' });
@@ -77,15 +77,15 @@ export function createAdminRouter(): Router {
     }
 
     if (status === 'STOPPED') {
-      const started = await wahaClient.startSession();
+      const started = await whatsappGatewayClient.startSession();
       if (!started) {
         return res.status(503).json({ error: 'session_start_failed', status });
       }
-      const refreshed = await wahaClient.getSessionStatus();
+      const refreshed = await whatsappGatewayClient.getSessionStatus();
       status = normalizeStatus(refreshed?.status);
     }
 
-    const qr = await wahaClient.getSessionQr();
+    const qr = await whatsappGatewayClient.getSessionQr();
 
     if (!qr) {
       return res.status(202).json({ error: 'qr_not_available', status });

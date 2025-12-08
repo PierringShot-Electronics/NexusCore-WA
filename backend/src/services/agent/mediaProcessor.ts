@@ -106,9 +106,6 @@ async function downloadMedia(
   try {
     const response = await axios.get<ArrayBuffer>(targetUrl, {
       responseType: 'arraybuffer',
-      headers: {
-        'X-Api-Key': env.WAHA_API_KEY
-      },
       timeout: 15_000
     });
 
@@ -135,30 +132,42 @@ async function transcribeAudioAttachment(
       : 'audio/ogg';
 
   if (hasOpenAI && openaiClient) {
-    try {
-      const file = await toFile(attachment.buffer, attachment.filename, {
-        type: preferredMime
-      });
-      const result = (await openaiClient.audio.transcriptions.create({
-        file,
-        model: env.OPENAI_TRANSCRIPTION_MODEL,
-        response_format: 'verbose_json'
-      })) as {
-        text?: string;
-        segments?: Array<{ text: string }>;
-      };
+    const openAiModels = Array.from(
+      new Set(
+        [env.OPENAI_TRANSCRIPTION_MODEL, 'whisper-1', 'gpt-4o-mini-transcribe'].filter(
+          (value): value is string => typeof value === 'string' && value.trim().length > 0
+        )
+      )
+    );
+    for (const model of openAiModels) {
+      try {
+        const file = await toFile(attachment.buffer, attachment.filename, {
+          type: preferredMime
+        });
+        const result = (await openaiClient.audio.transcriptions.create({
+          file,
+          model,
+          response_format: 'verbose_json'
+        })) as {
+          text?: string;
+          segments?: Array<{ text: string }>;
+        };
 
-      const text =
-        typeof result.text === 'string'
-          ? result.text
-          : result.segments?.map((segment) => segment.text).join(' ');
+        const text =
+          typeof result.text === 'string'
+            ? result.text
+            : result.segments?.map((segment) => segment.text).join(' ');
 
-      if (text) {
-        logger.debug('Audio transcribed via OpenAI model.');
-        return text.trim();
+        if (text) {
+          logger.debug({ model }, 'Audio transcribed via OpenAI model.');
+          return text.trim();
+        }
+      } catch (error) {
+        logger.warn(
+          { err: error, model },
+          'OpenAI transcription attempt failed; trying next candidate.'
+        );
       }
-    } catch (error) {
-      logger.warn({ err: error }, 'OpenAI transcription failed');
     }
   }
 
@@ -186,7 +195,7 @@ async function transcribeAudioAttachment(
 
 function normalizeMediaUrl(url: string): string | null {
   try {
-    const parsed = new URL(url, env.WAHA_BASE_URL);
+    const parsed = new URL(url, env.WHATSAPP_GATEWAY_BASE_URL);
     return parsed.toString();
   } catch {
     return null;

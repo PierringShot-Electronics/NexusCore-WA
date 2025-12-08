@@ -5,7 +5,7 @@ PierringShot Electronics üçün nəzərdə tutulan bu layihə, sadəcə bir "ch
 Müasir elektronika bazarında, xüsusilə "Tap.az" kimi rəqabətli platformaların mövcudluğu şəraitində, müştəri sorğularına anında və dəqiq cavab vermək, rəqib qiymətlərini real vaxt rejimində analiz etmək və fərdiləşdirilmiş satış təklifləri irəli sürmək kritik əhəmiyyət kəsb edir. Təklif olunan sistem, insan operatorların iş yükünü minimuma endirərək, onları yalnız "Human-in-the-loop" (HITL) çərçivəsində kritik qərarların verilməsinə cəlb edəcək, qalan bütün rutin və orta səviyyəli mürəkkəb tapşırıqları avtonom şəkildə icra edəcəkdir.
 1.2 Əsas Texniki Tələblər və Hədəflər
 Bu texniki sənəd, aşağıdakı strateji hədəfləri reallaşdırmaq üçün hazırlanmışdır:
-Tam Avtomatlaşdırma: WhatsApp Business API (WAHA) vasitəsilə gələn bütün sorğuların (mətn, səs, foto, video) qəbulu, analizi və cavablandırılması.
+Tam Avtomatlaşdırma: WhatsApp Business API (WhatsApp gateway) vasitəsilə gələn bütün sorğuların (mətn, səs, foto, video) qəbulu, analizi və cavablandırılması.
 İntellektual Adaptasiya: GPT-5 səviyyəli modellər vasitəsilə müştəri niyyətinin (intent) dərin analizi və kontekstə uyğun dinamik cavabların formalaşdırılması.
 Rəqabət Üstünlüyü: Web search və scrapping alətləri vasitəsilə rəqiblərin (məsələn, Tap.az) qiymət strategiyasının izlənilməsi və dinamik qiymət təkliflərinin verilməsi.
 Etibarlılıq və Təhlükəsizlik: Guardrails, Qara/Ağ siyahılar və Docker konteynerləşdirmə vasitəsilə sistemin dayanıqlılığının təmin edilməsi.
@@ -13,9 +13,9 @@ Etibarlılıq və Təhlükəsizlik: Guardrails, Qara/Ağ siyahılar və Docker k
 Sistemin arxitekturası, miqyaslana bilən, modulyar və sənaye standartlarına uyğun mikroservis yanaşmasına əsaslanır. Bu bölmədə, sistemin fiziki və məntiqi quruluşu detallı şəkildə təhlil edilir.
 2.1 Konteynerləşdirmə və Docker Orkestrasiyası
 Sistem, "Infrastructure as Code" (IaC) prinsiplərinə uyğun olaraq, tamamilə Docker mühitində işləmək üçün dizayn edilmişdir. Bu yanaşma, "mənim kompüterimdə işləyirdi, serverdə işləmir" problemini aradan qaldırır və yerləşdirmə (deployment) prosesini standartlaşdırır. docker-compose.yml faylı sistemin onurğa sütununu təşkil edir və aşağıdakı xidmətləri orkestrasiya edir:
-WAHA (WhatsApp HTTP API) Service:
+WhatsApp gateway Service:
 Rol: WhatsApp şəbəkəsi ilə əlaqəni təmin edən şlüz (gateway).
-İmic: devlikeapro/waha:latest.
+İmic: `gateway/Dockerfile` üzərindən qurulan `nexuscore-wa-wweb` konteyneri.
 Konfiqurasiya: Sessiya məlumatlarının qorunması üçün volumes vasitəsilə yerli fayl sisteminə bağlanır. Şəbəkə izolyasiyası tətbiq edilir; xarici dünyaya yalnız API vasitəsilə çıxış verilir.
 Application Service (Node.js/TypeScript):
 Rol: Sistemin beyni. Bütün biznes məntiqi, AI inteqrasiyası və verilənlər bazası əməliyyatları burada icra olunur.
@@ -27,11 +27,15 @@ Rol: Həm əlaqəli məlumatların (istifadəçilər, sifarişlər), həm də ve
 Cache & Queue Service (Redis):
 Rol: Səsli mesajların buferi (debounce), API limitlərinin izlənilməsi və qısa müddətli söhbət kontekstinin saxlanması.
 2.2 Backend Arxitekturası (Node.js/Express)
-Backend, hadisə əsaslı (event-driven) bir model üzərində qurulmuşdur. WAHA-dan gələn hər bir webhook, sistem daxilində bir "hadisə" kimi emal edilir.
+Backend, hadisə əsaslı (event-driven) bir model üzərində qurulmuşdur. WhatsApp gateway-dan gələn hər bir webhook, sistem daxilində bir "hadisə" kimi emal edilir.
 2.2.1 Express Proxy Pattern
-Təhlükəsizliyi artırmaq və mərkəzi idarəetməni təmin etmək üçün, WAHA API-yə birbaşa müraciətlər bloklanır. Bunun əvəzinə, Express serveri bir "Reverse Proxy" kimi fəaliyyət göstərir. Bütün sorğular (/api/waha/*) əvvəlcə Express serverinə daxil olur, burada autentifikasiya (JWT/API Key), rate-limiting və loqlama proseslərindən keçir, daha sonra daxili WAHA konteynerinə yönləndirilir.
+Təhlükəsizliyi artırmaq və mərkəzi idarəetməni təmin etmək üçün, WhatsApp gateway API-yə birbaşa müraciətlər bloklanır. Bunun əvəzinə, Express serveri bir "Reverse Proxy" kimi fəaliyyət göstərir. Bütün sorğular (/api/gateway/*) əvvəlcə Express serverinə daxil olur, burada autentifikasiya (JWT/API Key), rate-limiting və loqlama proseslərindən keçir, daha sonra daxili WhatsApp gateway konteynerinə yönləndirilir.
 2.2.2 WebSocket İnteqrasiyası
 Admin panelində real vaxt rejimində loqların izlənməsi və söhbətlərə müdaxilə edilməsi üçün HTTP sorğuları ilə yanaşı, Socket.io və ya ws kitabxanası istifadə edilir. Bu, sistemin vəziyyəti haqqında anlıq məlumat axınını təmin edir.
+2.2.3 Realtime Telemetriya və Flow Canvas
+Agent pipeline-ındakı hər mərhələ (`buffer`, `intent`, `persona`, `tools`, `response`, `send`) telemetriya eventləri kimi çıxarılır və `telemetryEventBus` vasitəsilə həm yaddaşda, həm də Redis Stream-də (`telemetry:events`, MAXLEN ≈ 500) saxlanılır. Backend `GET /telemetry/stream` (Server-Sent Events, `Last-Event-ID` dəstəyi + 15s heartbeat) və `GET /telemetry/history` endpointlərini təqdim edir; bu servislər sayəsində telemetriya eventləri real vaxtda yayımlanır və son tarixçə JSON formatında əldə olunur.
+
+Admin dashboard-da `/telemetry` səhifəsi bu stream-lə qoşularaq “Flow Canvas” vizualizasiyasını qurur: mərhələ node-ları canlı şəkildə işıqlanır, persona/model və stage müddəti kartlarda göstərilir, sağ paneldə isə 100 event-lik log cədvəli saxlanılır. Bu modul gələcək token usage və xərc monitorinqi (Cost Monitor) üçün baza rolunu oynayır; Redis Stream qısamüddətli replay/aggreqasiyanı təmin edir, uzunmüddətli saxlama ehtiyacı yaranarsa PostgreSQL-ə sinklənə bilər.
 2.3 Şəbəkə Topologiyası və Təhlükəsizlik
 Bütün konteynerlər daxili bridge şəbəkəsində birləşdirilir. Yalnız Application Service-in HTTP portu (məsələn, 3000 və ya 8080) və Admin Panel portu xarici dünyaya açılır. Verilənlər bazası və Redis xidmətləri yalnız daxili şəbəkədən əlçatandır.
 3. Məlumat Arxitekturası və RAG (Bilik Bazası)
@@ -86,10 +90,10 @@ Function CalculateOffer(internalCost, competitorPrice, minMargin):
 AI cavabında bu konteksti istifadə edir: "Bazarda bu ekran 120 AZN-ə satılır, lakin biz sizə 110 AZN təklif edirik və üzərinə pulsuz quraşdırma hədiyyə edirik."
 
 5.3 Reallaşdırılmış Funksionallıqlar (Noyabr 2025)
-- **Agent Orkestrasiyası:** `AgentService` Groq əsaslı intent klassifikasiyası və GPT-4o cavab generasiyası ilə tam operativdir; cavablar WAHA vasitəsilə avtomatik göndərilir.
+- **Agent Orkestrasiyası:** `AgentService` Groq əsaslı intent klassifikasiyası və GPT-4o cavab generasiyası ilə tam operativdir; cavablar WhatsApp gateway vasitəsilə avtomatik göndərilir.
 - **Alət Ekosistemi:** `lookupInternalStock` (pgvector + keyword fallback), `searchCompetitors` (Tap.az scraping), `calculateOffer` (dinamik qiymət) və şəkil üçün müvəqqəti Vision cavabı istifadədədir.
 - **Guardrails & Handover:** Zərərli sorğuları filtr edən guardrail və avtomatik human handover tövsiyəsi aktivdir.
-- **Konfiqurasiya:** `.env` vasitəsilə WAHA, OpenAI və Groq parametrləri verilir; ən azı bir LLM API açarı tələb olunur.
+- **Konfiqurasiya:** `.env` vasitəsilə WhatsApp gateway, OpenAI və Groq parametrləri verilir; ən azı bir LLM API açarı tələb olunur.
 
 6. AI Nüvəsi və Master Prompt Dizaynı
 Sistemin mərkəzində dayanan AI modeli, yalnız sual-cavab rejimində deyil, "Agentic" rejimdə işləməlidir. Bu, modelin alətlərdən (Tools) istifadə etmək və çox addımlı planlar qurmaq qabiliyyətini tələb edir.
@@ -124,12 +128,12 @@ Admin paneli üçün React (və ya Next.js) və Material UI (və ya Tailwind CSS
 Dashboard: Aktiv söhbətlərin sayı, günün satış statistikası, AI-nin uğur dərəcəsi.
 Live Chat View: WhatsApp söhbətlərinin real vaxt rejimində izlənilməsi. Admin müdaxiləsi ("Takeover") düyməsi.
 Konfiqurasiya: Promptların redaktəsi, CSV kataloqunun yenilənməsi, Qara/Ağ siyahıların idarəsi.
-Logs: Sistemin bütün texniki loqları (Redis statusu, WAHA bağlantısı, AI token istifadəsi).
+Logs: Sistemin bütün texniki loqları (Redis statusu, WhatsApp gateway bağlantısı, AI token istifadəsi).
 8. Agent.md – Kodlama Agenti Üçün İcra Təlimatı
 Aşağıdakı bölmə, bu sistemi avtonom şəkildə quracaq AI agentinə veriləcək dəqiq və texniki təlimatdır.
 Agent.md: PierringShot AI System Implementation Plan
 1. Project Initialization & Context
-Objective: Build a production-ready, Dockerized, multimodal AI agent for PierringShot Electronics using Node.js/TypeScript. Core Tech: Express.js, WAHA, Groq API (LLM/Whisper/Vision), PostgreSQL (pgvector), Redis. Documentation Reference: Utilize biznes.md for logic and WABA_Texniki_Senedlesme.txt for specific API contracts.
+Objective: Build a production-ready, Dockerized, multimodal AI agent for PierringShot Electronics using Node.js/TypeScript. Core Tech: Express.js, WhatsApp gateway, Groq API (LLM/Whisper/Vision), PostgreSQL (pgvector), Redis. Documentation Reference: Utilize biznes.md for logic and WABA_Texniki_Senedlesme.txt for specific API contracts.
 2. Directory Structure Setup
 Execute the following folder structure creation:
 mkdir -p pierringshot-ai/{src,data,scripts,docker,logs}
@@ -140,11 +144,11 @@ mkdir -p pierringshot-ai/data/{csv,vectors,sessions,media}
 3. Step-by-Step Implementation Guide
 Phase 1: Docker Infrastructure (The Foundation)
 Create docker-compose.yml:
-Service: waha: Use devlikeapro/waha:latest. Bind mount ./data/sessions:/app/.sessions. Environment: WAHA_WEBHOOK_URL=http://app:3000/api/webhooks/waha. Expose port 3000.
+Service: gateway: Build from `./gateway/Dockerfile`. Bind mount `./data/whatsapp-gateway/session:/usr/src/app/.whatsapp-session`. Environment: `WHATSAPP_GATEWAY_WEBHOOK_URL=http://app:3000/webhook`. Expose port 3001.
 Service: db: Use postgres:16-alpine. Environment: POSTGRES_DB=pierringshot. Init script: CREATE EXTENSION IF NOT EXISTS vector;. Volume: pgdata.
 Service: redis: Use redis:alpine. For audio buffering and rate limiting.
-Service: app: Build from ./Dockerfile. Depends on waha, db, redis. Environment variables from .env.
-Phase 2: Core Backend & WAHA Integration
+Service: app: Build from ./Dockerfile. Depends on gateway, db, redis. Environment variables from .env.
+Phase 2: Core Backend & WhatsApp gateway Integration
 Initialize Node.js Project:
 npm init -y
 Install dependencies: express, winston, pg, redis, groq-sdk, multer, csv-parser, zod, axios.
@@ -152,10 +156,10 @@ Dev dependencies: typescript, ts-node, nodemon, @types/*.
 Setup Server Entry (src/app.ts):
 Initialize Express.
 Apply middleware: helmet, cors, express.json.
-Mount routes: /api/webhooks (WAHA events), /api/admin (UI support).
-Implement WAHA Client (src/services/waha.ts):
+Mount routes: /api/webhooks (WhatsApp gateway events), /api/admin (UI support).
+Implement WhatsApp gateway Client (src/services/gateway.ts):
 Methods: sendMessage, sendImage, sendAudio, reply.
-Proxy Route: Create a route handler in Express that validates X-Api-Key and proxies requests to http://waha:3000.
+Proxy Route: Create a route handler in Express that validates X-Api-Key and proxies requests to http://gateway:3000.
 Phase 3: AI Orchestration & RAG
 Database Migration:
 Create tables: leads (id, phone, status, context), vectors (id, content, embedding vector(1536)), products (sku, price, specs).
@@ -169,44 +173,44 @@ Orchestrator: The main loop. Receives message -> Gets Context -> Calls LLM with 
 Persona Strategy (src/services/agent/personaStrategy.ts): Intent nəticələrinə, multimodal siqnallara və kontekstdəki tarixi cavablara əsaslanıb uyğun personanı (`general`, `sales`, `support`, `diagnostics`) seçir. Hər persona üçün cavablar birbaşa OpenAI modelləri ilə generasiya olunur.
 Phase 4: Multimodal Pipelines
 Audio Pipeline (src/services/agent/mediaProcessor.ts):
-Debounce Logic: Smart buffer yerində qalır; audio/PTT mesajı buferə düşdükdə media prosessor WAHA URL-dən faylı endirir.
+Debounce Logic: Smart buffer yerində qalır; audio/PTT mesajı buferə düşdükdə media prosessor WhatsApp gateway URL-dən faylı endirir.
 Transkripsiya: Default olaraq OpenAI `OPENAI_TRANSCRIPTION_MODEL` (default `whisper-large-v3-turbo`) çağırılır; OpenAI əlçatan deyilsə Groq `GROQ_TRANSCRIPTION_MODEL` fallback kimi istifadə olunur.
 Kontekst: Transkript `[Səs mesajı] ...` prefiksi ilə agent kontekstinə əlavə edilir, beləliklə LLM istifadəçinin dediklərini mətn kimi görür.
 Vision & Video:
 Şəkillər üçün `OPENAI_VISION_MODEL` (default GPT-4o Vision) çağırılır və maksimum 3 şəkil üçün detallar toplanır; OpenAI əlçatan deyilsə Groq `GROQ_VISION_MODEL` fallback edilir. Video mesajlarında link və caption qeydi yaradılır (gələcəkdə frame analizi üçün hook).
 Documents:
-WAHA-dan gələn sənəd URL-ləri keşlənir və cavabda qeyd olunur; lazım olsa operator təsdiqi tələb olunur.
+WhatsApp gateway-dan gələn sənəd URL-ləri keşlənir və cavabda qeyd olunur; lazım olsa operator təsdiqi tələb olunur.
 Phase 5: Admin Panel & Security
 Admin API:
 Endpoints for GET /logs, POST /config/update, GET /chats.
 WebSocket server for streaming logs.
 Guardrails:
 Implement InputValidator using Zod schemas for all webhooks.
-Implement OutputFilter regex patterns to catch prohibited keywords before sending to WAHA.
+Implement OutputFilter regex patterns to catch prohibited keywords before sending to WhatsApp gateway.
 Phase 6: Testing & Deployment
 Smoke Tests (scripts/smoke.sh):
 Curl /api/health.
-Curl WAHA /api/sessions.
+Curl WhatsApp gateway /api/sessions.
 If fail -> alert or auto-restart container.
 Agent Logic: Use the "Master Prompt" defined in the Technical Report as the system message.
 4. Operational Instructions
 Start: docker-compose up --build -d
 Logs: docker-compose logs -f app
-Auth: Scan QR code printed in logs or via Admin UI (`bash scripts/waha_session.sh` skripti də QR çıxara bilir).
+Auth: Scan QR code printed in logs or via Admin UI (`bash scripts/gateway_session.sh` skripti də QR çıxara bilir).
 Import Data: Place products.csv in ./data/csv and hit POST /api/admin/ingest.
 9. Təhlükəsizlik və Siqnal Testləri (Reliability)
 
-**WAHA API Funksiya Kataloqu:** WAHA endpointlərinin OpenAI funksiyaları kimi istifadəsi üçün tam JSON sxemlərini `docs/waha_function_catalog.md` faylında tapa bilərsiniz.
+**WhatsApp gateway API Funksiya Kataloqu:** WhatsApp gateway endpointlərinin OpenAI funksiyaları kimi istifadəsi üçün tam JSON sxemlərini `docs/gateway_function_catalog.md` faylında tapa bilərsiniz.
 Sistemin "7/24 ayaqda qalması" üçün çoxqatlı qoruma mexanizmləri tətbiq edilir.
 9.1 Siqnal Testləri (Smoke Tests)
 Sadə, lakin effektiv testlər sistemin hər 5 dəqiqədən bir sağlamlığını yoxlayır. test/smoke.sh skripti:
 API Health: /api/health endpointinə sorğu göndərir. (200 OK gözlənilir).
-WAHA Session: WAHA-nın sessiya statusunu yoxlayır (CONNECTED olmalıdır).
+WhatsApp gateway Session: WhatsApp gateway-nın sessiya statusunu yoxlayır (CONNECTED olmalıdır).
 DB Connection: Verilənlər bazasına sadə SELECT 1 sorğusu göndərir.
 Uğursuzluq Halında: Əgər hər hansı test uğursuz olarsa, sistem docker restart <container_name> əmrini icra edir və Slack/Telegram vasitəsilə adminə xəbərdarlıq göndərir.
 9.2 Avtomatik Bərpa və Retry Mexanizmləri
 Network Glitches: AI API-lərinə (Groq/OpenAI) sorğu zamanı xəta baş verərsə, "Exponential Backoff" (1s, 2s, 4s, 8s) ilə təkrar cəhdlər edilir.
-Message Queue: Əgər WAHA mesajı göndərə bilmirsə (məsələn, telefon sönübsə), mesaj "Dead Letter Queue"ya düşür və telefon aktiv olanda təkrar göndərilir.
+Message Queue: Əgər WhatsApp gateway mesajı göndərə bilmirsə (məsələn, telefon sönübsə), mesaj "Dead Letter Queue"ya düşür və telefon aktiv olanda təkrar göndərilir.
 10. Nəticə
 Bu sənəd, PierringShot Electronics üçün sənaye səviyyəsində, yüksək performanslı və intellektual bir sistemin qurulması üçün tələb olunan bütün aspektləri əhatə edir. Layihənin uğuru, təkcə kodun yazılmasında deyil, bu sənəddə təsvir olunan arxitektura prinsiplərinə (Docker izolyasiyası, RAG dəqiqliyi, Multimodal emal) ciddi riayət edilməsindədir. Təqdim olunan Agent.md faylı, kodlama agentinin dərhal işə başlaması üçün hazırdır.
 Texnologiya
@@ -214,7 +218,7 @@ Texnologiya
 Səbəb
 Node.js / Express
 Backend API
-Asinxron I/O, WAHA ilə uyğunluq
+Asinxron I/O, WhatsApp gateway ilə uyğunluq
 TypeScript
 Kod Bazası
 Tip təhlükəsizliyi, böyük layihə idarəçiliyi

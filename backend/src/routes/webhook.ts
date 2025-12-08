@@ -1,20 +1,20 @@
 import { Router } from 'express';
 import { SmartBuffer } from '../services/buffer/smartBuffer';
 import { logger } from '../utils/logger';
-import { parseWahaWebhookBody } from '../services/buffer/parser';
+import { parseGatewayWebhookBody } from '../services/buffer/parser';
 
 export function createWebhookRouter(buffer: SmartBuffer): Router {
   const router = Router();
 
   router.post('/', async (request, response) => {
-    const parsed = parseWahaWebhookBody(request.body);
+    const parsed = parseGatewayWebhookBody(request.body);
 
     if (!parsed) {
       logger.debug(
         { payload: request.body },
-        'WAHA webhook payload ignored (unsupported format)'
+        'WhatsApp gateway webhook payload ignored (unsupported format)'
       );
-      // Gracefully ignore unsupported payloads (ack required by WAHA).
+      // Gracefully ignore unsupported payloads while acknowledging receipt.
       return response.status(202).json({ status: 'ignored' });
     }
 

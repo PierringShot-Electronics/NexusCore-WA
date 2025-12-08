@@ -4,7 +4,7 @@ import { loadBusinessPrompt } from './promptLoader';
 import type { PersistedMessage } from './contextManager';
 import type { ToolSummary } from './toolExecutor';
 import { logger } from '../../utils/logger';
-import type { AgentReplyMessage } from './wahaClient';
+import type { AgentReplyMessage } from './whatsappGatewayClient';
 import type { PersonaDecision } from './personaStrategy';
 
 interface ResponseBuilderOptions {
@@ -109,6 +109,8 @@ interface ModelCandidate {
   temperature: number;
 }
 
+const DEFAULT_TEXT_FALLBACK_MODELS = ['gpt-4o-mini', 'gpt-4o'];
+
 function renderContext(messages: PersistedMessage[]): string {
   if (!messages.length) {
     return 'Əvvəlki söhbət yoxdur.';
@@ -140,19 +142,19 @@ function normalizeTimestamp(value: Date | string | number): number {
 function renderTools(tools: ToolSummary): string {
   const parts: string[] = [];
   if (tools.vision?.length) {
-    const entries = tools.vision
-      .map((entry, idx) => {
-        const prefix = `Şəkil ${idx + 1}`;
-        const lines = [
-          `${prefix}: ${entry.summary}`,
-          entry.probableModel ? `• Model ehtimalı: ${entry.probableModel}` : null,
-          entry.damageNotes ? `• Zədə qeydləri: ${entry.damageNotes}` : null,
-          entry.ocrText ? `• Etiket/OCR: ${entry.ocrText}` : null
-        ].filter(Boolean);
-        return lines.join('\n');
-      })
-      .join('\n');
-    parts.push(entries);
+    const entries = tools.vision.map((entry, idx) => {
+      const lines = [
+        '<item>',
+        `🖼️ Şəkil ${idx + 1}: ${entry.summary}`,
+        entry.probableModel ? `🔖 Model: ${entry.probableModel}` : null,
+        entry.damageNotes ? `🛠️ Zədə: ${entry.damageNotes}` : null,
+        entry.ocrText ? `🧾 OCR: ${entry.ocrText}` : null,
+        '📩 Qeyd: Məhsulu stokdan əldə etmək və ya uyğunluğu dəqiqləşdirmək üçün bizimlə əlaqə saxlayın.',
+        '</item>'
+      ].filter(Boolean);
+      return lines.join('\n');
+    });
+    parts.push(entries.join('\n'));
   }
   if (tools.stock && tools.stock.matches.length) {
     const lines = tools.stock.matches
@@ -217,22 +219,27 @@ function renderOrchestrationBrief(tools: ToolSummary): string {
 }
 
 function buildModelCandidates(persona: PersonaDecision): ModelCandidate[] {
+  const seen = new Set<string>();
   const candidates: ModelCandidate[] = [];
-
-  const preferredModel = persona.profile.preferredModel ?? env.OPENAI_MODEL;
-
-  if (preferredModel) {
+  const pushCandidate = (model?: string | null) => {
+    if (!model) {
+      return;
+    }
+    const trimmed = model.trim();
+    if (!trimmed || seen.has(trimmed)) {
+      return;
+    }
+    seen.add(trimmed);
     candidates.push({
-      model: preferredModel,
+      model: trimmed,
       temperature: persona.profile.temperature
     });
-  }
+  };
 
-  if (!candidates.length && env.OPENAI_MODEL) {
-    candidates.push({
-      model: env.OPENAI_MODEL,
-      temperature: persona.profile.temperature
-    });
+  pushCandidate(persona.profile.preferredModel);
+  pushCandidate(env.OPENAI_MODEL);
+  for (const model of DEFAULT_TEXT_FALLBACK_MODELS) {
+    pushCandidate(model);
   }
 
   return candidates;
