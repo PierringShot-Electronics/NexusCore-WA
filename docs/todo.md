@@ -21,7 +21,8 @@
   - [ ] Qısa müddətli saxlama (Redis stream? Postgres table?)
   - [ ] Sürətli sorğular üçün son 1h/24h aggregation
 - [ ] API endpointləri
-  - [ ] `GET /api/telemetry/summary` (toplam tokenlər, xərc, model üzrə breakdown)
+  - [x] `GET /api/telemetry/cost/summary` (model/token xərc cəmi)
+  - [ ] `GET /api/telemetry/summary` (genişləndirilmiş breakdown)
   - [ ] `GET /api/telemetry/conversations?chatId=...`
   - [x] `GET /api/telemetry/stream` (SSE)
 - [ ] Dashboard “Cost Monitor” səhifəsi
