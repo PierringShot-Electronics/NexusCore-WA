@@ -67,7 +67,27 @@ const EnvironmentSchema = z
       .string()
       .default(path.join(process.cwd(), 'data', 'biznes.md')),
     TOOL_TAPAZ_BASE_URL: z.string().default('https://tap.az/s'),
-    DEFAULT_LOCALE: z.string().default('az-AZ')
+    DEFAULT_LOCALE: z.string().default('az-AZ'),
+    TELEMETRY_ENABLED: z
+      .string()
+      .optional()
+      .transform((value) => (value ? value.toLowerCase() !== 'false' : true)),
+    TELEMETRY_REDIS_STREAM: z.string().default('telemetry:events'),
+    TELEMETRY_STREAM_MAX_LENGTH: z
+      .string()
+      .optional()
+      .transform((value) => (value ? Number(value) : 500))
+      .refine((value) => value > 0, {
+        message: 'TELEMETRY_STREAM_MAX_LENGTH must be greater than 0'
+      }),
+    TELEMETRY_HISTORY_LIMIT: z
+      .string()
+      .optional()
+      .transform((value) => (value ? Number(value) : 200))
+      .refine((value) => value > 0, {
+        message: 'TELEMETRY_HISTORY_LIMIT must be greater than 0'
+      }),
+    MODEL_PRICING_OVERRIDES: z.string().optional()
   });
 
 export type AppEnvironment = z.infer<typeof EnvironmentSchema>;
