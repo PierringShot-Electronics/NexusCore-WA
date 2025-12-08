@@ -3,13 +3,13 @@
 > _Son yoxlamanın tarixi:_ **01 December 2025**
 
 ## 🔁 Realtime Workflow Vizualizasiya
-- [ ] Backend agent pipeline mərhələləri üçün strukturlu “event” çıxışı hazırlamaq (`buffer`, `intent`, `persona`, `tools`, `response`, `send`)
-  - [ ] Hər event üçün payload (chatId, persona, model, sürə, nəticə) tərtib et
-  - [ ] Eventləri SSE/WebSocket yayıncısına ötürmək üçün servis (Node EventEmitter + Redis pub/sub?)
-- [ ] Dashboard-da “Flow Canvas” səhifəsi (React Flow və ya oxşarı)
-  - [ ] Node/edge sxemi: giriş → niyyət → persona → alətlər → cavab
-  - [ ] Real-time işıqlandırma/animasiya (event gələndə node highlight/glow)
-  - [ ] Qısa input/output snippet-ləri və status badge (success/fail)
+- [x] Backend agent pipeline mərhələləri üçün strukturlu “event” çıxışı hazırlamaq (`buffer`, `intent`, `persona`, `tools`, `response`, `send`)
+  - [x] Hər event üçün payload (chatId, persona, model, sürə, nəticə) tərtib et
+  - [x] Eventləri SSE/WebSocket yayıncısına ötürmək üçün servis (Node EventEmitter + Redis pub/sub?)
+- [x] Dashboard-da “Flow Canvas” səhifəsi (React Flow və ya oxşarı)
+  - [x] Node/edge sxemi: giriş → niyyət → persona → alətlər → cavab
+  - [x] Real-time işıqlandırma/animasiya (event gələndə node highlight/glow)
+  - [x] Qısa input/output snippet-ləri və status badge (success/fail)
   - [ ] Mobil görünüş üçün sadələşdirilmiş timeline fallback
 - [ ] Event replay / tarixçə paneli (son N mesaj üçün təkrar izləmə)
 
@@ -23,7 +23,7 @@
 - [ ] API endpointləri
   - [ ] `GET /api/telemetry/summary` (toplam tokenlər, xərc, model üzrə breakdown)
   - [ ] `GET /api/telemetry/conversations?chatId=...`
-  - [ ] `GET /api/telemetry/stream` (SSE)
+  - [x] `GET /api/telemetry/stream` (SSE)
 - [ ] Dashboard “Cost Monitor” səhifəsi
   - [ ] Model-fokuslu bar/line chartlar
   - [ ] Workflow icrası üçün “input vs output tokens” kartı
