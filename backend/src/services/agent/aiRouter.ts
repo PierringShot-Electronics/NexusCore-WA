@@ -1,6 +1,7 @@
 import { openaiClient, hasOpenAI, groqClient, hasGroq } from '../../config/ai';
 import { env } from '../../config/env';
 import { logger } from '../../utils/logger';
+import { recordModelUsage } from '../telemetry/costTracker';
 
 export interface IntentClassification {
   needsStock: boolean;
@@ -18,7 +19,11 @@ const FALLBACK_INTENT: IntentClassification = {
   handover: false
 };
 
-export async function classifyIntent(message: string): Promise<IntentClassification> {
+export async function classifyIntent(
+  message: string,
+  options: { chatId?: string } = {}
+): Promise<IntentClassification> {
+  const chatId = options.chatId ?? 'global';
   const prompt = `
 Sən PierringShot Electronics üçün operativ ümumi baxış agentisən.
 Mətn verilir. JSON formatında cavab ver:
@@ -54,6 +59,20 @@ Mətn: """${message}"""`.trim();
         });
         const text = completion.output_text ?? '{}';
         logger.debug('Intent classified via OpenAI model.');
+        const usage = completion.usage as Record<string, number> | undefined;
+        if (usage) {
+          const inputTokens = usage.input_tokens ?? usage.prompt_tokens;
+          const outputTokens = usage.output_tokens ?? usage.completion_tokens;
+          await recordModelUsage({
+            chatId,
+            provider: 'openai',
+            model: completion.model ?? openAiRouterModel,
+            usage: {
+              promptTokens: inputTokens,
+              completionTokens: outputTokens
+            }
+          });
+        }
         return text;
       } catch (error) {
         logger.warn({ err: error }, 'OpenAI intent classification failed, trying fallback provider.');
@@ -77,6 +96,18 @@ Mətn: """${message}"""`.trim();
 
         const content = completion.choices[0]?.message?.content ?? '{}';
         logger.debug('Intent classified via Groq router model.');
+        const usage = completion.usage as Record<string, number> | undefined;
+        if (usage) {
+          await recordModelUsage({
+            chatId,
+            provider: 'groq',
+            model: completion.model ?? env.GROQ_ROUTER_MODEL,
+            usage: {
+              promptTokens: usage.prompt_tokens,
+              completionTokens: usage.completion_tokens
+            }
+          });
+        }
         return content;
       } catch (error) {
         logger.warn({ err: error }, 'Groq intent classification failed.');

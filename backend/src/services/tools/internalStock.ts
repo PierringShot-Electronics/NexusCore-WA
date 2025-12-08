@@ -3,6 +3,7 @@ import { postgresPool } from '../../db/postgres';
 import { openaiClient, hasOpenAI } from '../../config/ai';
 import { env } from '../../config/env';
 import { logger } from '../../utils/logger';
+import { recordModelUsage } from '../telemetry/costTracker';
 
 export interface StockMatch {
   id: string;
@@ -19,7 +20,11 @@ export interface StockLookupResult {
   strategy: 'vector' | 'keyword';
 }
 
-export async function lookupInternalStock(query: string): Promise<StockLookupResult> {
+export async function lookupInternalStock(
+  query: string,
+  options: { chatId?: string } = {}
+): Promise<StockLookupResult> {
+  const chatId = options.chatId ?? 'stock';
   if (!query.trim()) {
     return { matches: [], strategy: 'keyword' };
   }
@@ -30,6 +35,18 @@ export async function lookupInternalStock(query: string): Promise<StockLookupRes
         input: query,
         model: env.OPENAI_EMBEDDING_MODEL
       });
+
+      const usage = (embedding as unknown as { usage?: { prompt_tokens?: number } }).usage;
+      if (usage) {
+        await recordModelUsage({
+          chatId,
+          provider: 'openai',
+          model: env.OPENAI_EMBEDDING_MODEL,
+          usage: {
+            promptTokens: usage.prompt_tokens
+          }
+        });
+      }
 
       const vector = embedding.data[0]?.embedding;
       if (vector) {

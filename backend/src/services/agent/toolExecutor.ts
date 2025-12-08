@@ -9,6 +9,7 @@ import { getAgentConfig } from '../../config/agentConfig';
 export interface ToolContext {
   userMessage: string;
   buffered: BufferedMessagePayload[];
+  chatId?: string;
 }
 
 export interface ToolDecision {
@@ -45,7 +46,7 @@ export async function executeTools(
 
     const insights: VisionSummaryEntry[] = [];
     for (const [index, message] of imageMessages.slice(0, imageLimit).entries()) {
-      const insight = await analyzeImage(message.imageUrl);
+      const insight = await analyzeImage(message.imageUrl, { chatId: context.chatId });
       if (insight) {
         insights.push({ ...insight, imageUrl: message.imageUrl, index });
       }
@@ -58,7 +59,9 @@ export async function executeTools(
 
   let stockResult;
   if (decision.needsStock) {
-    stockResult = await lookupInternalStock(context.userMessage);
+    stockResult = await lookupInternalStock(context.userMessage, {
+      chatId: context.chatId
+    });
     results.stock = stockResult;
   }
 

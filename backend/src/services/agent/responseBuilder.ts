@@ -6,8 +6,10 @@ import type { ToolSummary } from './toolExecutor';
 import { logger } from '../../utils/logger';
 import type { AgentReplyMessage } from './wahaClient';
 import type { PersonaDecision } from './personaStrategy';
+import { recordModelUsage } from '../telemetry/costTracker';
 
 interface ResponseBuilderOptions {
+  chatId: string;
   recentMessages: PersistedMessage[];
   userMessage: string;
   tools: ToolSummary;
@@ -27,7 +29,7 @@ export async function buildAssistantReply(
     ];
   }
 
-  const { recentMessages, userMessage, tools, persona } = options;
+  const { chatId, recentMessages, userMessage, tools, persona } = options;
   const systemPrompt = await loadBusinessPrompt();
 
   const contextBlock = renderContext(recentMessages);
@@ -69,11 +71,12 @@ ${toolBlock}
 
     for (const candidate of candidates) {
       try {
-        const text = await generateWithModel({
+        const { text, model } = await generateWithModel({
           model: candidate.model,
           temperature: candidate.temperature,
           prompt,
-          userMessage
+          userMessage,
+          chatId
         });
 
         const messages = transformTextToReplies(text);
@@ -243,7 +246,8 @@ async function generateWithModel(options: {
   temperature: number;
   prompt: string;
   userMessage: string;
-}): Promise<string> {
+  chatId: string;
+}): Promise<{ text: string; model: string }> {
   if (!openaiClient) {
     throw new Error('OpenAI client is unavailable');
   }
@@ -256,8 +260,31 @@ async function generateWithModel(options: {
       { role: 'user', content: options.userMessage }
     ]
   });
+  const usage = completion.usage as
+    | {
+        input_tokens?: number;
+        output_tokens?: number;
+        prompt_tokens?: number;
+        completion_tokens?: number;
+      }
+    | undefined;
 
-  return completion.output_text ?? '';
+  if (usage) {
+    await recordModelUsage({
+      chatId: options.chatId,
+      provider: 'openai',
+      model: completion.model ?? options.model,
+      usage: {
+        promptTokens: usage.input_tokens ?? usage.prompt_tokens,
+        completionTokens: usage.output_tokens ?? usage.completion_tokens
+      }
+    });
+  }
+
+  return {
+    text: completion.output_text ?? '',
+    model: completion.model ?? options.model
+  };
 }
 
 function transformTextToReplies(text: string): AgentReplyMessage[] {

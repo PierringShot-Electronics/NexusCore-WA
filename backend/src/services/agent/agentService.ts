@@ -53,7 +53,7 @@ export class AgentService {
       return;
     }
 
-    const consolidated = await consolidateBufferedMessages(bufferedMessages);
+    const consolidated = await consolidateBufferedMessages(bufferedMessages, chatExternalId);
 
     await contextManager.appendMessage({
       chatId,
@@ -173,7 +173,7 @@ export class AgentService {
       'Prepared context for agent decision'
     );
 
-    const intent = await classifyIntent(userMessage);
+    const intent = await classifyIntent(userMessage, { chatId: chatExternalId });
 
     const normalizedUserMessage = userMessage.toLowerCase();
     const explicitHandoverRequest = matchPatterns(
@@ -240,7 +240,8 @@ export class AgentService {
 
     const toolResults = await executeTools(intent, {
       userMessage,
-      buffered: bufferedMessages
+      buffered: bufferedMessages,
+      chatId: chatExternalId
     });
 
     const hasAudio = bufferedMessages.some((msg) => msg.type === 'audio');
@@ -258,6 +259,7 @@ export class AgentService {
     });
 
     const assistantMessages = await buildAssistantReply({
+      chatId: chatExternalId,
       recentMessages,
       userMessage,
       tools: toolResults,
@@ -370,7 +372,8 @@ function matchPatterns(patterns: RegExp[], input: string): boolean {
 export const agentService = new AgentService();
 
 async function consolidateBufferedMessages(
-  messages: BufferedMessagePayload[]
+  messages: BufferedMessagePayload[],
+  chatId: string
 ): Promise<{
   text: string;
   audio: string[];
@@ -408,7 +411,7 @@ async function consolidateBufferedMessages(
     }
   }
 
-  const mediaSummary = await processMediaMessages(messages);
+  const mediaSummary = await processMediaMessages(messages, chatId);
 
   for (const transcript of mediaSummary.audioTranscripts) {
     if (transcript.transcript) {

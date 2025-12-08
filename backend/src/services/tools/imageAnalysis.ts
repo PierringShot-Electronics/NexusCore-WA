@@ -1,6 +1,7 @@
 import { openaiClient, hasOpenAI, groqClient, hasGroq } from '../../config/ai';
 import { env } from '../../config/env';
 import { logger } from '../../utils/logger';
+import { recordModelUsage } from '../telemetry/costTracker';
 
 export interface VisionInsight {
   summary: string;
@@ -9,18 +10,22 @@ export interface VisionInsight {
   ocrText?: string;
 }
 
-export async function analyzeImage(url: string): Promise<VisionInsight | null> {
+export async function analyzeImage(
+  url: string,
+  options: { chatId?: string } = {}
+): Promise<VisionInsight | null> {
+  const chatId = options.chatId ?? 'vision';
   const instructions =
     'Sən PierringShot Electronics üçün texniki analiz mütəxəssisisən. ' +
     'Aşağıdakı JSON formatında cavab ver: {"summary": string, "probableModel"?: string, "damageNotes"?: string, "ocrText"?: string}. ' +
     'Summary sahəsində 2-3 cümlə ilə cihazın vəziyyətini izah et. ProbableModel varsa model adını yaz. DamageNotes bölməsində görünən zədələri qeyd et. OCRText sahəsində etiketi və ya ekrandakı mətni olduğu kimi çıxart.';
 
-  const openAiResult = await runOpenAIVision(url, instructions);
+  const openAiResult = await runOpenAIVision(url, instructions, chatId);
   if (openAiResult) {
     return openAiResult;
   }
 
-  const groqResult = await runGroqVision(url, instructions);
+  const groqResult = await runGroqVision(url, instructions, chatId);
   if (groqResult) {
     return groqResult;
   }
@@ -30,7 +35,8 @@ export async function analyzeImage(url: string): Promise<VisionInsight | null> {
 
 async function runOpenAIVision(
   url: string,
-  instructions: string
+  instructions: string,
+  chatId: string
 ): Promise<VisionInsight | null> {
   if (!hasOpenAI || !openaiClient) {
     return null;
@@ -60,6 +66,27 @@ async function runOpenAIVision(
       ] as any
     });
 
+    const usage = response.usage as
+      | {
+          input_tokens?: number;
+          output_tokens?: number;
+          prompt_tokens?: number;
+          completion_tokens?: number;
+        }
+      | undefined;
+
+    if (usage) {
+      await recordModelUsage({
+        chatId,
+        provider: 'openai',
+        model: response.model ?? env.OPENAI_VISION_MODEL,
+        usage: {
+          promptTokens: usage.input_tokens ?? usage.prompt_tokens,
+          completionTokens: usage.output_tokens ?? usage.completion_tokens
+        }
+      });
+    }
+
     const insight = parseVisionResponse(response.output_text ?? '');
     if (insight) {
       return insight;
@@ -85,7 +112,8 @@ async function runOpenAIVision(
 
 async function runGroqVision(
   url: string,
-  instructions: string
+  instructions: string,
+  chatId: string
 ): Promise<VisionInsight | null> {
   if (!hasGroq || !groqClient) {
     return null;
@@ -108,6 +136,20 @@ async function runGroqVision(
     });
 
     const content = completion.choices[0]?.message?.content ?? '';
+    const usage = completion.usage as
+      | { prompt_tokens?: number; completion_tokens?: number }
+      | undefined;
+    if (usage) {
+      await recordModelUsage({
+        chatId,
+        provider: 'groq',
+        model: completion.model ?? env.GROQ_VISION_MODEL,
+        usage: {
+          promptTokens: usage.prompt_tokens,
+          completionTokens: usage.completion_tokens
+        }
+      });
+    }
     const insight = parseVisionResponse(content);
     if (insight) {
       return insight;

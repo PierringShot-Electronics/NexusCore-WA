@@ -6,6 +6,7 @@ import type { BufferedMessagePayload } from '../buffer/smartBuffer';
 import { env } from '../../config/env';
 import { hasOpenAI, openaiClient, hasGroq, groqClient } from '../../config/ai';
 import { logger } from '../../utils/logger';
+import { recordModelUsage } from '../telemetry/costTracker';
 
 export interface MediaProcessingSummary {
   audioTranscripts: Array<{ id: string; transcript: string }>;
@@ -20,7 +21,8 @@ interface DownloadResult {
 }
 
 export async function processMediaMessages(
-  messages: BufferedMessagePayload[]
+  messages: BufferedMessagePayload[],
+  chatId?: string
 ): Promise<MediaProcessingSummary> {
   const audioMessages = messages.filter(
     (message) => message.type === 'audio' && message.audioUrl
@@ -45,7 +47,7 @@ export async function processMediaMessages(
         continue;
       }
 
-      const transcript = await transcribeAudioAttachment(download);
+      const transcript = await transcribeAudioAttachment(download, chatId);
       if (transcript) {
         audioTranscripts.push({ id: message.id, transcript });
       }
@@ -127,7 +129,8 @@ async function downloadMedia(
 }
 
 async function transcribeAudioAttachment(
-  attachment: DownloadResult
+  attachment: DownloadResult,
+  chatId?: string
 ): Promise<string | null> {
   const preferredMime =
     attachment.mimeType && typeof attachment.mimeType === 'string'
@@ -146,6 +149,11 @@ async function transcribeAudioAttachment(
       })) as {
         text?: string;
         segments?: Array<{ text: string }>;
+        usage?: {
+          prompt_tokens?: number;
+          output_tokens?: number;
+          total_tokens?: number;
+        };
       };
 
       const text =
@@ -155,6 +163,16 @@ async function transcribeAudioAttachment(
 
       if (text) {
         logger.debug('Audio transcribed via OpenAI model.');
+        if (result.usage) {
+          await recordModelUsage({
+            chatId: chatId ?? 'media',
+            provider: 'openai',
+            model: env.OPENAI_TRANSCRIPTION_MODEL,
+            usage: {
+              promptTokens: result.usage.prompt_tokens ?? result.usage.total_tokens
+            }
+          });
+        }
         return text.trim();
       }
     } catch (error) {
@@ -170,10 +188,21 @@ async function transcribeAudioAttachment(
       const result = (await groqClient.audio.transcriptions.create({
         file,
         model: env.GROQ_TRANSCRIPTION_MODEL
-      })) as { text?: string };
+      })) as { text?: string; usage?: { prompt_tokens?: number; completion_tokens?: number } };
 
       if (result?.text) {
         logger.debug('Audio transcribed via Groq fallback model.');
+        if (result.usage) {
+          await recordModelUsage({
+            chatId: chatId ?? 'media',
+            provider: 'groq',
+            model: env.GROQ_TRANSCRIPTION_MODEL,
+            usage: {
+              promptTokens: result.usage.prompt_tokens,
+              completionTokens: result.usage.completion_tokens
+            }
+          });
+        }
         return result.text.trim();
       }
     } catch (error) {
