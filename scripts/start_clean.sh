@@ -81,7 +81,7 @@ resolve_port() {
 APP_PORT="$(resolve_port APP_PORT 3000)"
 DASHBOARD_PORT="$(resolve_port DASHBOARD_PORT 3002)"
 WAHA_PORT="$(resolve_port WAHA_SERVER_PORT 3001)"
-POSTGRES_PORT="$(resolve_port POSTGRES_PORT 55433)"
+POSTGRES_PORT="$(resolve_port POSTGRES_PORT 54432)"
 REDIS_PORT="$(resolve_port REDIS_PORT 6379)"
 
 free_port() {

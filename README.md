@@ -51,6 +51,9 @@
    docker compose run --rm app npm run seed
    ```
 
+> 💡 **Port conflict?** If another Postgres instance is running, adjust `POSTGRES_PORT` in `.env`
+> (default `54432`) before running `bash scripts/start_clean.sh`.
+
 ## ▶️ Usage
 - 🌀 **Dashboard** – visit `http://localhost:3002` for the operator console (`/overview`, `/telemetry`, `/agent`, `/environment`).
 - 💬 **WhatsApp Gateway** – scan the QR from the dashboard or `scripts/whatsapp_gateway_session.sh` to pair the agent number.
