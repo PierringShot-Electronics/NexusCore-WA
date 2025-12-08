@@ -33,6 +33,7 @@ logs/
 logs/*.png
 logs/*.json
 data/waha/
+data/whatsapp-gateway/
 agent_runs/
 
 # ------------------------------
